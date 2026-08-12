@@ -323,7 +323,7 @@ export default function ClientBookingPage() {
                     <p className="text-[11px] text-slate-400">Por favor seleccioná otra fecha de atención.</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-52 overflow-y-auto pr-1">
                     {dynamicSlots
                       .filter(slot => !hideOccupied || slot.isAvailable)
                       .map(slot => (

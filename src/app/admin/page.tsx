@@ -26,7 +26,9 @@ import {
   Search,
   Check,
   AlertCircle,
-  FileText
+  FileText,
+  BarChart3,
+  TrendingUp
 } from 'lucide-react';
 import { Tenant, Appointment, Service, Professional, Client, RubroType, DaySchedule } from '@/types/saas';
 import { 
@@ -45,7 +47,7 @@ function TenantAdminContent() {
   // State
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
-  const [activeTab, setActiveTab] = useState<'agenda' | 'whatsapp' | 'horarios' | 'servicios' | 'clientes'>('agenda');
+  const [activeTab, setActiveTab] = useState<'agenda' | 'dashboard' | 'whatsapp' | 'horarios' | 'servicios' | 'clientes'>('agenda');
 
   // Business Data
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -335,6 +337,31 @@ function TenantAdminContent() {
 
   const activeSchedule = currentTenant.schedule || DEFAULT_SCHEDULE;
 
+  // Business Dashboard Metrics Calculations
+  const totalAppsCount = tenantAppointments.length;
+  const confirmedAppsCount = tenantAppointments.filter(a => a.status === 'confirmed' || a.status === 'completed').length;
+  const cancelledAppsCount = tenantAppointments.filter(a => a.status === 'cancelled').length;
+  const attendanceRate = totalAppsCount > 0 
+    ? Math.round((confirmedAppsCount / totalAppsCount) * 100) 
+    : 100;
+
+  const totalEstimatedRevenue = tenantAppointments
+    .filter(a => a.status !== 'cancelled')
+    .reduce((sum, a) => {
+      const s = services.find(serv => serv.id === a.serviceId);
+      return sum + (s ? s.price : 0);
+    }, 0);
+
+  const serviceStats = tenantServices.map(s => {
+    const count = tenantAppointments.filter(a => a.serviceId === s.id && a.status !== 'cancelled').length;
+    return { ...s, count };
+  }).sort((a, b) => b.count - a.count);
+
+  const profStats = tenantProfessionals.map(p => {
+    const count = tenantAppointments.filter(a => a.professionalId === p.id && a.status !== 'cancelled').length;
+    return { ...p, count };
+  }).sort((a, b) => b.count - a.count);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-24 md:pb-8">
       {/* existing top bar... */}
@@ -357,7 +384,7 @@ function TenantAdminContent() {
                     const target = tenants.find(t => t.id === e.target.value);
                     if (target) setCurrentTenant(target);
                   }}
-                  className="bg-transparent font-bold text-white text-base focus:outline-none cursor-pointer border-none p-0 pr-2"
+                  className="bg-transparent font-bold text-white text-base focus:outline-none cursor-pointer border-none p-0 pr-2 max-w-[140px] sm:max-w-xs truncate"
                 >
                   {tenants.map(t => (
                     <option key={t.id} value={t.id} className="bg-slate-900 text-white">
@@ -678,6 +705,110 @@ function TenantAdminContent() {
             </div>
               </>
             )}
+
+          </div>
+        )}
+
+        {/* TAB: DASHBOARD / MÉTRICAS DEL NEGOCIO */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <BarChart3 size={18} className="text-emerald-400" /> Dashboard y Métricas de {currentTenant.name}
+              </h2>
+              <p className="text-xs text-slate-400">Resumen de ingresos estimados, asistencia de clientes y rendimiento del equipo</p>
+            </div>
+
+            {/* Top KPI Cards Grid */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="glass-card p-4 rounded-2xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Facturación Est.</span>
+                <p className="text-xl sm:text-2xl font-black text-emerald-400">${totalEstimatedRevenue.toLocaleString('es-AR')}</p>
+                <p className="text-[10px] text-slate-400">Ingresos proyectados</p>
+              </div>
+
+              <div className="glass-card p-4 rounded-2xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Turnos Totales</span>
+                <p className="text-xl sm:text-2xl font-black text-white">{totalAppsCount}</p>
+                <p className="text-[10px] text-emerald-400 font-semibold">{confirmedAppsCount} confirmados</p>
+              </div>
+
+              <div className="glass-card p-4 rounded-2xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tasa Asistencia</span>
+                <p className="text-xl sm:text-2xl font-black text-indigo-400">{attendanceRate}%</p>
+                <p className="text-[10px] text-slate-400">Asistencia efectiva</p>
+              </div>
+
+              <div className="glass-card p-4 rounded-2xl space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Clientes Únicos</span>
+                <p className="text-xl sm:text-2xl font-black text-teal-400">{tenantClients.length}</p>
+                <p className="text-[10px] text-slate-400">Cartera activa</p>
+              </div>
+            </div>
+
+            {/* Top Services & Professional Breakdown Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Top Services */}
+              <div className="glass-card p-5 rounded-2xl space-y-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Scissors size={16} /> Servicios Más Solicitados
+                </h3>
+
+                <div className="space-y-2.5">
+                  {serviceStats.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic">No hay datos de servicios aún.</p>
+                  ) : (
+                    serviceStats.map(s => (
+                      <div key={s.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs font-semibold">
+                          <span className="text-white truncate max-w-[180px]">{s.name}</span>
+                          <span className="text-slate-400">{s.count} turnos (${(s.count * s.price).toLocaleString('es-AR')})</span>
+                        </div>
+                        <div className="w-full h-2 bg-slate-900 rounded-full overflow-hidden">
+                          <div 
+                            className="h-full bg-amber-500 rounded-full transition-all duration-300" 
+                            style={{ width: `${Math.min(100, Math.max(8, (s.count / (totalAppsCount || 1)) * 100))}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Team Performance */}
+              <div className="glass-card p-5 rounded-2xl space-y-3">
+                <h3 className="text-xs font-extrabold uppercase tracking-wider text-indigo-400 flex items-center gap-1.5">
+                  <Users size={16} /> Rendimiento por Profesional
+                </h3>
+
+                <div className="space-y-2.5">
+                  {profStats.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic">No hay profesionales registrados.</p>
+                  ) : (
+                    profStats.map(p => (
+                      <div key={p.id} className="flex items-center justify-between p-2.5 bg-slate-900/60 rounded-xl border border-slate-800">
+                        <div className="flex items-center gap-2.5">
+                          {/* eslint-disable-next-html-next-element */}
+                          <img src={p.avatarUrl} alt={p.name} className="w-8 h-8 rounded-lg object-cover border border-slate-700 shrink-0" />
+                          <div>
+                            <span className="text-xs font-bold text-white block truncate max-w-[140px]">{p.name}</span>
+                            <span className="text-[10px] text-slate-400">{p.specialty}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-right">
+                          <span className="text-xs font-extrabold text-indigo-400">{p.count} turnos</span>
+                          <span className="text-[10px] text-slate-400 block">{totalAppsCount > 0 ? Math.round((p.count / totalAppsCount) * 100) : 0}% del total</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+            </div>
 
           </div>
         )}
@@ -1012,12 +1143,12 @@ function TenantAdminContent() {
       </main>
 
       {/* Mobile Bottom Navigation Bar */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 backdrop-blur-lg z-40 px-4 py-2">
+      <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 backdrop-blur-lg z-40 px-2 py-2">
         <div className="max-w-md mx-auto flex items-center justify-around">
           
           <button
             onClick={() => setActiveTab('agenda')}
-            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
               activeTab === 'agenda' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -1026,8 +1157,18 @@ function TenantAdminContent() {
           </button>
 
           <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
+              activeTab === 'dashboard' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <BarChart3 size={18} />
+            <span className="text-[10px] font-semibold">Métricas</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('whatsapp')}
-            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
               activeTab === 'whatsapp' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white'
             }`}
           >
@@ -1037,7 +1178,7 @@ function TenantAdminContent() {
 
           <button
             onClick={() => setActiveTab('horarios')}
-            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
               activeTab === 'horarios' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
             }`}
           >
