@@ -66,7 +66,8 @@ export default function RegisterPage() {
         autoRemind24h: true,
         autoRemind2h: true,
         welcomeMessage: `¡Hola! Bienvenido a ${businessName}. ¿Qué turno querés agendar hoy?`
-      }
+      },
+      hasCompletedOnboarding: false
     };
 
     // Save to localStorage

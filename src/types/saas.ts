@@ -91,6 +91,7 @@ export interface Tenant {
   schedule: DaySchedule[];
   slotIntervalMinutes?: number;
   branding?: TenantBranding;
+  hasCompletedOnboarding?: boolean;
 }
 
 export interface TenantUser {

@@ -36,7 +36,11 @@ import {
   Palette,
   Image as ImageIcon,
   Copy,
-  CopyCheck
+  CopyCheck,
+  Building,
+  User as UserIcon,
+  Lock,
+  Rocket
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Tenant, Appointment, Service, Professional, Client, RubroType, DaySchedule, TenantUser } from '@/types/saas';
@@ -108,6 +112,24 @@ function TenantAdminContent() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'pending' | 'completed' | 'cancelled'>('all');
   const [copiedLink, setCopiedLink] = useState(false);
+  // Business & User Profile Settings State
+  const [editBusinessName, setEditBusinessName] = useState('');
+  const [editBusinessPhone, setEditBusinessPhone] = useState('');
+  const [editBusinessSlug, setEditBusinessSlug] = useState('');
+  const [userProfileName, setUserProfileName] = useState('');
+  const [tenantSaveMsg, setTenantSaveMsg] = useState('');
+  const [profileSaveMsg, setProfileSaveMsg] = useState('');
+
+  // Reset Password Modal State
+  const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
+  const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
+
+  // Onboarding Wizard State
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3>(1);
 
   const handleCopyBookingLink = () => {
     if (!currentTenant) return;
@@ -115,6 +137,74 @@ function TenantAdminContent() {
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleSaveTenantInfo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant) return;
+    const updatedTenant: Tenant = {
+      ...currentTenant,
+      name: editBusinessName || currentTenant.name,
+      phone: editBusinessPhone || currentTenant.phone,
+      slug: editBusinessSlug || currentTenant.slug
+    };
+    setCurrentTenant(updatedTenant);
+    const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
+    setTenants(updatedTenants);
+    localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+    setTenantSaveMsg('¡Datos del negocio guardados con éxito!');
+    setTimeout(() => setTenantSaveMsg(''), 3000);
+  };
+
+  const handleSaveUserProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant) return;
+    const updatedTenant: Tenant = {
+      ...currentTenant,
+      ownerName: userProfileName || currentTenant.ownerName
+    };
+    setCurrentTenant(updatedTenant);
+    const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
+    setTenants(updatedTenants);
+    localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+    setProfileSaveMsg('¡Nombre de usuario actualizado con éxito!');
+    setTimeout(() => setProfileSaveMsg(''), 3000);
+  };
+
+  const handleResetPassword = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordErrorMsg('');
+    setPasswordSuccessMsg('');
+
+    if (!newPassword || newPassword.length < 6) {
+      setPasswordErrorMsg('La nueva contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordErrorMsg('Las contraseñas ingresadas no coinciden.');
+      return;
+    }
+
+    setPasswordSuccessMsg('¡Contraseña actualizada con éxito!');
+    setTimeout(() => {
+      setIsPasswordModalOpen(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordSuccessMsg('');
+    }, 1200);
+  };
+
+  const handleCompleteOnboarding = () => {
+    if (!currentTenant) return;
+    const updatedTenant: Tenant = {
+      ...currentTenant,
+      hasCompletedOnboarding: true
+    };
+    setCurrentTenant(updatedTenant);
+    const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
+    setTenants(updatedTenants);
+    localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
   };
 
   const getWeekDates = (baseDateStr: string) => {
@@ -189,6 +279,12 @@ function TenantAdminContent() {
     // Pick active tenant
     const found = loadedTenants.find(t => t.id === tenantIdParam) || loadedTenants[0];
     setCurrentTenant(found);
+    if (found) {
+      setEditBusinessName(found.name);
+      setEditBusinessPhone(found.phone);
+      setEditBusinessSlug(found.slug);
+      setUserProfileName(found.ownerName);
+    }
 
     // Load Appointments, Services, Professionals
     const savedApps = localStorage.getItem('saas_appointments');
@@ -1335,8 +1431,126 @@ function TenantAdminContent() {
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <Settings size={18} className="text-indigo-400" /> Configuración General del Negocio
               </h2>
-              <p className="text-xs text-slate-400">Administrá los parámetros globales e identidad visual de tu comercio</p>
+              <p className="text-xs text-slate-400">Administrá los datos de tu comercio, tu perfil personal e identidad visual</p>
             </div>
+
+            {/* CARD 1: DATOS DEL NEGOCIO */}
+            <form onSubmit={handleSaveTenantInfo} className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <Building size={16} className="text-emerald-400" /> Datos de la Empresa / Comercio
+                </h3>
+                {tenantSaveMsg && (
+                  <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                    {tenantSaveMsg}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Nombre del Negocio</label>
+                  <input
+                    type="text"
+                    value={editBusinessName}
+                    onChange={(e) => setEditBusinessName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">WhatsApp de Contacto / Consultas</label>
+                  <input
+                    type="text"
+                    value={editBusinessPhone}
+                    onChange={(e) => setEditBusinessPhone(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Slug de URL Pública (`tuturnito.app/reserva/[slug]`)</label>
+                  <input
+                    type="text"
+                    value={editBusinessSlug}
+                    onChange={(e) => setEditBusinessSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Rubro del Negocio</label>
+                  <input
+                    type="text"
+                    disabled
+                    value={currentTenant.rubro.toUpperCase()}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition"
+                >
+                  Guardar Datos del Negocio
+                </button>
+              </div>
+            </form>
+
+            {/* CARD 2: PERFIL DEL USUARIO EN SESIÓN (PERSONA LOGUEADA) */}
+            <form onSubmit={handleSaveUserProfile} className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                  <UserIcon size={16} className="text-indigo-400" /> Perfil de Usuario Logueado (Tus Datos)
+                </h3>
+                {profileSaveMsg && (
+                  <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                    {profileSaveMsg}
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Nombre del Titular / Usuario</label>
+                  <input
+                    type="text"
+                    value={userProfileName}
+                    onChange={(e) => setUserProfileName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="font-semibold text-slate-300">Email Registrado (Acceso)</label>
+                  <input
+                    type="email"
+                    disabled
+                    value={currentTenant.ownerEmail}
+                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
+                >
+                  <Lock size={14} /> Cambiar / Resetear Contraseña
+                </button>
+
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition"
+                >
+                  Actualizar Perfil
+                </button>
+              </div>
+            </form>
 
             {/* Branding & Customization Settings Card */}
             <div className="glass-card p-6 rounded-2xl space-y-5 border border-slate-800">
@@ -1891,6 +2105,266 @@ function TenantAdminContent() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Cambiar / Resetear Contraseña */}
+      {isPasswordModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Lock size={18} className="text-indigo-400" />
+                Cambiar Contraseña de Cuenta
+              </h3>
+              <button 
+                onClick={() => setIsPasswordModalOpen(false)} 
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPassword} className="space-y-3">
+              {passwordErrorMsg && (
+                <div className="p-3 bg-rose-500/10 border border-rose-500/20 text-rose-300 rounded-xl text-xs flex items-center gap-2">
+                  <AlertCircle size={16} className="shrink-0" />
+                  <span>{passwordErrorMsg}</span>
+                </div>
+              )}
+
+              {passwordSuccessMsg && (
+                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 rounded-xl text-xs flex items-center gap-2">
+                  <Check size={16} className="shrink-0" />
+                  <span>{passwordSuccessMsg}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Contraseña Actual</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Nueva Contraseña (mínimo 6 caracteres)</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Confirmar Nueva Contraseña</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsPasswordModalOpen(false)} 
+                  className="text-xs text-slate-400 px-3 py-1.5"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md">
+                  Actualizar Contraseña
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Onboarding Wizard Inicial de Negocio */}
+      {currentTenant.hasCompletedOnboarding === false && (
+        <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl relative overflow-hidden">
+            
+            {/* Header Wizard */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg">
+                  <Rocket size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white tracking-tight">
+                    ¡Bienvenido a tuturnito<span className="text-emerald-400">.app</span>! 🚀
+                  </h3>
+                  <p className="text-xs text-slate-400">Configuración inicial en 3 simples pasos</p>
+                </div>
+              </div>
+
+              <span className="px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-full">
+                Paso {onboardingStep} de 3
+              </span>
+            </div>
+
+            {/* Step Indicators */}
+            <div className="grid grid-cols-3 gap-2">
+              <div className={`h-1.5 rounded-full transition ${onboardingStep >= 1 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+              <div className={`h-1.5 rounded-full transition ${onboardingStep >= 2 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+              <div className={`h-1.5 rounded-full transition ${onboardingStep >= 3 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+            </div>
+
+            {/* STEP 1: Datos & Identidad */}
+            {onboardingStep === 1 && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Building size={16} className="text-emerald-400" /> 1. Confirmá los datos de tu comercio
+                  </h4>
+                  <p className="text-xs text-slate-400">Personalizá cómo te verán tus clientes al ingresar a agendar turnos</p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-300 mb-1 block">Nombre del Negocio</label>
+                    <input
+                      type="text"
+                      value={currentTenant.name}
+                      onChange={(e) => {
+                        const updated = { ...currentTenant, name: e.target.value };
+                        setCurrentTenant(updated);
+                      }}
+                      className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-slate-300 mb-1 block">Preset de Logo del Comercio</label>
+                    <div className="flex items-center gap-2 pt-1">
+                      {[
+                        'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=150',
+                        'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150',
+                        'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+                        'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=150'
+                      ].map((url, idx) => (
+                        /* eslint-disable-next-html-next-element */
+                        <img
+                          key={idx}
+                          src={url}
+                          alt="Preset logo"
+                          onClick={() => handleUpdateBranding('logoUrl', url)}
+                          className={`w-10 h-10 rounded-xl object-cover cursor-pointer border ${
+                            currentTenant.branding?.logoUrl === url ? 'border-emerald-500 scale-105' : 'border-slate-800 opacity-60 hover:opacity-100'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-800 flex justify-end">
+                  <button
+                    onClick={() => setOnboardingStep(2)}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                  >
+                    Siguiente: Vincular WhatsApp →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Vinculación WhatsApp */}
+            {onboardingStep === 2 && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <MessageSquare size={16} className="text-emerald-400" /> 2. Conectá tu WhatsApp para Recordatorios
+                  </h4>
+                  <p className="text-xs text-slate-400">Escaneá el código QR desde tu celular en WhatsApp ➔ Dispositivos Vinculados</p>
+                </div>
+
+                <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col items-center justify-center space-y-3">
+                  {/* eslint-disable-next-html-next-element */}
+                  <img
+                    src={currentTenant.whatsappConfig.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SAAS_TENANT_QR_${currentTenant.slug}`}
+                    alt="WhatsApp QR Code"
+                    className="w-36 h-36 bg-white p-2 rounded-xl shadow-md"
+                  />
+                  <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
+                    <Check size={14} /> Instancia lista para escanear
+                  </span>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 flex justify-between">
+                  <button
+                    onClick={() => setOnboardingStep(1)}
+                    className="text-xs text-slate-400 hover:text-white"
+                  >
+                    ← Atrás
+                  </button>
+                  <button
+                    onClick={() => setOnboardingStep(3)}
+                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                  >
+                    Siguiente: Servicios & Horarios →
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Listo para empezar */}
+            {onboardingStep === 3 && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Check size={16} className="text-emerald-400" /> 3. ¡Tu negocio está listo para recibir turnos!
+                  </h4>
+                  <p className="text-xs text-slate-400">Tus clientes ya pueden agendar mediante tu link personalizado</p>
+                </div>
+
+                <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl space-y-2">
+                  <span className="text-xs font-bold text-indigo-300 block">🌐 Tu URL de Reserva Directa:</span>
+                  <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800">
+                    <span className="text-xs text-slate-300 font-mono flex-1 truncate">
+                      tuturnito.app/reserva/{currentTenant.slug}
+                    </span>
+                    <button
+                      onClick={handleCopyBookingLink}
+                      className="px-2.5 py-1 bg-emerald-500/20 text-emerald-300 text-[11px] font-bold rounded-lg border border-emerald-500/30"
+                    >
+                      {copiedLink ? '¡Copiado!' : 'Copiar'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 flex justify-between">
+                  <button
+                    onClick={() => setOnboardingStep(2)}
+                    className="text-xs text-slate-400 hover:text-white"
+                  >
+                    ← Atrás
+                  </button>
+                  <button
+                    onClick={handleCompleteOnboarding}
+                    className="px-6 py-2.5 bg-gradient-to-r from-emerald-500 to-indigo-600 hover:from-emerald-400 hover:to-indigo-500 text-white font-black text-xs rounded-xl shadow-xl transition transform hover:scale-105"
+                  >
+                    ¡Comenzar a usar mi Dashboard! 🚀
+                  </button>
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
       )}
