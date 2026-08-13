@@ -71,18 +71,18 @@ export default function LandingPage() {
           {/* Action CTAs */}
           <div className="flex items-center gap-3">
             <Link
-              href="/admin"
+              href="/login"
               className="hidden sm:inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-800 rounded-xl transition border border-slate-700"
             >
               <Smartphone size={15} /> Iniciar Sesión
             </Link>
 
-            <a
-              href="#precios"
+            <Link
+              href="/registro"
               className="inline-flex items-center gap-2 px-4 py-2.5 text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl transition shadow-lg shadow-emerald-500/25 hover:scale-[1.02]"
             >
               Probar Gratis <ArrowRight size={14} />
-            </a>
+            </Link>
           </div>
 
         </div>
@@ -116,12 +116,12 @@ export default function LandingPage() {
             {/* CTA Buttons */}
             <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
               
-              <a
-                href="#precios"
+              <Link
+                href="/registro"
                 className="w-full sm:w-auto px-8 py-4 text-sm font-extrabold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl transition shadow-xl shadow-emerald-500/30 flex items-center justify-center gap-2.5 hover:scale-[1.02]"
               >
                 Empezar Prueba Gratis por 14 Días <ArrowRight size={18} />
-              </a>
+              </Link>
 
               <Link
                 href="/admin"
@@ -577,12 +577,12 @@ export default function LandingPage() {
           </p>
 
           <div className="pt-2">
-            <a
-              href="#precios"
+            <Link
+              href="/registro"
               className="inline-flex items-center gap-2 px-8 py-4 text-sm font-extrabold bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl transition shadow-xl shadow-emerald-500/30 hover:scale-105"
             >
               Comenzar Prueba Gratuita de 14 Días <ArrowRight size={18} />
-            </a>
+            </Link>
           </div>
         </div>
       </section>
