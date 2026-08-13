@@ -258,7 +258,8 @@ function TenantAdminContent() {
   const [profAvatarUrl, setProfAvatarUrl] = useState('');
 
   useEffect(() => {
-    // Check User Session Role
+    // Check User Session Role & Active Tenant ID
+    let sessionTenantId: string | null = null;
     const userSession = localStorage.getItem('tuturnito_current_user');
     if (userSession) {
       try {
@@ -267,6 +268,7 @@ function TenantAdminContent() {
           setCurrentUserRole('superadmin');
         } else {
           setCurrentUserRole('tenant_admin');
+          if (u.tenantId) sessionTenantId = u.tenantId;
         }
       } catch (e) {}
     }
@@ -276,8 +278,9 @@ function TenantAdminContent() {
     const loadedTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
     setTenants(loadedTenants);
 
-    // Pick active tenant
-    const found = loadedTenants.find(t => t.id === tenantIdParam) || loadedTenants[0];
+    // Pick active tenant (Priority 1: URL param, Priority 2: Session tenantId, Priority 3: First tenant)
+    const targetId = tenantIdParam || sessionTenantId;
+    const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0];
     setCurrentTenant(found);
     if (found) {
       setEditBusinessName(found.name);

@@ -13,8 +13,8 @@ import {
   Building2,
   CheckCircle2
 } from 'lucide-react';
-import { Tenant } from '@/types/saas';
-import { INITIAL_TENANTS } from '@/lib/mockStore';
+import { Tenant, TenantUser } from '@/types/saas';
+import { INITIAL_TENANTS, INITIAL_TENANT_USERS } from '@/lib/mockStore';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -43,21 +43,45 @@ export default function LoginPage() {
         return;
       }
 
-      // Business Login
+      // Business Login Validation
+      const cleanEmail = email.trim().toLowerCase();
+      if (!cleanEmail) {
+        setErrorMsg('Por favor ingresá tu correo electrónico.');
+        return;
+      }
+
       const savedTenants = localStorage.getItem('saas_tenants');
       const tenantsList: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
 
-      // Find tenant by email or default to first
-      const found = tenantsList.find(t => t.ownerEmail.toLowerCase() === email.toLowerCase()) || tenantsList[0];
+      // 1. Search by Tenant Owner Email
+      let foundTenant = tenantsList.find(t => t.ownerEmail.toLowerCase() === cleanEmail);
 
+      // 2. If not found as owner, search by Tenant User (collaborator/receptionist)
+      if (!foundTenant) {
+        const savedTenantUsers = localStorage.getItem('saas_tenant_users');
+        const tenantUsersList: TenantUser[] = savedTenantUsers ? JSON.parse(savedTenantUsers) : INITIAL_TENANT_USERS;
+        const matchedUser = tenantUsersList.find(u => u.email.toLowerCase() === cleanEmail);
+        if (matchedUser) {
+          foundTenant = tenantsList.find(t => t.id === matchedUser.tenantId);
+        }
+      }
+
+      // 3. If account is not found, stop and display error (NEVER default to demo tenant!)
+      if (!foundTenant) {
+        setErrorMsg('No encontramos un negocio o usuario registrado con este email. Verificá los datos o registrá tu comercio.');
+        return;
+      }
+
+      // Store active user session
       localStorage.setItem('tuturnito_current_user', JSON.stringify({
-        email: found.ownerEmail,
-        tenantId: found.id,
+        email: cleanEmail,
+        tenantId: foundTenant.id,
         role: 'tenant_admin'
       }));
 
-      router.push(`/admin?tenant=${found.id}`);
-    }, 500);
+      // Redirect to the SPECIFIC business admin page
+      router.push(`/admin?tenant=${foundTenant.id}`);
+    }, 400);
   };
 
   return (
