@@ -56,7 +56,7 @@ function TenantAdminContent() {
   // State
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'whatsapp' | 'horarios' | 'servicios' | 'clientes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'whatsapp' | 'horarios' | 'servicios' | 'configuracion' | 'clientes'>('dashboard');
   const [currentUserRole, setCurrentUserRole] = useState<'superadmin' | 'tenant_admin' | 'guest'>('tenant_admin');
 
   // Business Data
@@ -496,10 +496,11 @@ function TenantAdminContent() {
             <Link
               href={`/reserva/${currentTenant.slug}`}
               target="_blank"
-              className="p-2 text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 rounded-xl border border-indigo-500/20 transition"
-              title="Ver Landing de Reserva"
+              className="px-2.5 py-1.5 text-xs font-bold text-indigo-300 hover:text-white bg-indigo-500/10 hover:bg-indigo-500/20 rounded-xl border border-indigo-500/20 transition flex items-center gap-1.5 shadow-sm"
+              title="Abrir página pública de reserva"
             >
-              <ExternalLink size={18} />
+              <ExternalLink size={15} />
+              <span>Ver Reserva</span>
             </Link>
 
             <button
@@ -1246,13 +1247,26 @@ function TenantAdminContent() {
               ))}
             </div>
 
+          </div>
+        )}
+
+        {/* TAB: CONFIGURACIÓN GENERAL & PERSONALIZACIÓN */}
+        {activeTab === 'configuracion' && (
+          <div className="space-y-6 animate-in fade-in duration-200">
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                <Settings size={18} className="text-indigo-400" /> Configuración General del Negocio
+              </h2>
+              <p className="text-xs text-slate-400">Administrá los parámetros globales e identidad visual de tu comercio</p>
+            </div>
+
             {/* Branding & Customization Settings Card */}
             <div className="glass-card p-6 rounded-2xl space-y-5 border border-slate-800">
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <Palette size={18} className="text-indigo-400" /> Personalización & Marca de tu Negocio
-                  </h2>
+                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Palette size={16} className="text-indigo-400" /> Personalización & Marca de tu Negocio
+                  </h3>
                   <p className="text-xs text-slate-400">Personalizá el logo, portada e identidad visual de tu página pública de reserva</p>
                 </div>
               </div>
@@ -1434,6 +1448,16 @@ function TenantAdminContent() {
           >
             <Briefcase size={18} />
             <span className="text-[10px] font-semibold">Servicios</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('configuracion')}
+            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
+              activeTab === 'configuracion' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Settings size={18} />
+            <span className="text-[10px] font-semibold">Config.</span>
           </button>
 
           <button
