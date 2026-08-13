@@ -47,7 +47,8 @@ function TenantAdminContent() {
   // State
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
-  const [activeTab, setActiveTab] = useState<'agenda' | 'dashboard' | 'whatsapp' | 'horarios' | 'servicios' | 'clientes'>('agenda');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'whatsapp' | 'horarios' | 'servicios' | 'clientes'>('dashboard');
+  const [currentUserRole, setCurrentUserRole] = useState<'superadmin' | 'tenant_admin' | 'guest'>('tenant_admin');
 
   // Business Data
   const [appointments, setAppointments] = useState<Appointment[]>([]);
@@ -111,6 +112,19 @@ function TenantAdminContent() {
   const [profAvatarUrl, setProfAvatarUrl] = useState('');
 
   useEffect(() => {
+    // Check User Session Role
+    const userSession = localStorage.getItem('tuturnito_current_user');
+    if (userSession) {
+      try {
+        const u = JSON.parse(userSession);
+        if (u.role === 'superadmin') {
+          setCurrentUserRole('superadmin');
+        } else {
+          setCurrentUserRole('tenant_admin');
+        }
+      } catch (e) {}
+    }
+
     // Load Tenants
     const savedTenants = localStorage.getItem('saas_tenants');
     const loadedTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
@@ -378,20 +392,26 @@ function TenantAdminContent() {
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <select
-                  value={currentTenant.id}
-                  onChange={(e) => {
-                    const target = tenants.find(t => t.id === e.target.value);
-                    if (target) setCurrentTenant(target);
-                  }}
-                  className="bg-transparent font-bold text-white text-base focus:outline-none cursor-pointer border-none p-0 pr-2 max-w-[140px] sm:max-w-xs truncate"
-                >
-                  {tenants.map(t => (
-                    <option key={t.id} value={t.id} className="bg-slate-900 text-white">
-                      {t.name} ({t.rubro})
-                    </option>
-                  ))}
-                </select>
+                {(currentUserRole === 'superadmin' || tenantIdParam === 'demo') ? (
+                  <select
+                    value={currentTenant.id}
+                    onChange={(e) => {
+                      const target = tenants.find(t => t.id === e.target.value);
+                      if (target) setCurrentTenant(target);
+                    }}
+                    className="bg-transparent font-bold text-white text-base focus:outline-none cursor-pointer border-none p-0 pr-2 max-w-[140px] sm:max-w-xs truncate"
+                  >
+                    {tenants.map(t => (
+                      <option key={t.id} value={t.id} className="bg-slate-900 text-white">
+                        {t.name} ({t.rubro})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className="font-bold text-white text-base max-w-[160px] sm:max-w-xs truncate block">
+                    {currentTenant.name}
+                  </span>
+                )}
                 {getRubroIcon(currentTenant.rubro)}
               </div>
               <p className="text-[11px] text-slate-400 flex items-center gap-1.5">
@@ -405,13 +425,15 @@ function TenantAdminContent() {
 
           {/* Top Actions */}
           <div className="flex items-center gap-2">
-            <Link
-              href="/superadmin"
-              className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl border border-slate-700 transition"
-              title="Volver al Panel Super Admin"
-            >
-              <Settings size={18} />
-            </Link>
+            {currentUserRole === 'superadmin' && (
+              <Link
+                href="/superadmin"
+                className="p-2 text-slate-400 hover:text-white bg-slate-800 rounded-xl border border-slate-700 transition"
+                title="Volver al Panel Super Admin"
+              >
+                <Settings size={18} />
+              </Link>
+            )}
 
             <Link
               href={`/reserva/${currentTenant.slug}`}
@@ -1147,6 +1169,16 @@ function TenantAdminContent() {
         <div className="max-w-md mx-auto flex items-center justify-around">
           
           <button
+            onClick={() => setActiveTab('dashboard')}
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
+              activeTab === 'dashboard' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <BarChart3 size={18} />
+            <span className="text-[10px] font-semibold">Dashboard</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('agenda')}
             className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
               activeTab === 'agenda' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
@@ -1154,16 +1186,6 @@ function TenantAdminContent() {
           >
             <Calendar size={18} />
             <span className="text-[10px] font-semibold">Agenda</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
-              activeTab === 'dashboard' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <BarChart3 size={18} />
-            <span className="text-[10px] font-semibold">Métricas</span>
           </button>
 
           <button
