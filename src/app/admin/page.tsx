@@ -34,7 +34,9 @@ import {
   KeyRound,
   UserCheck,
   Palette,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Copy,
+  CopyCheck
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Tenant, Appointment, Service, Professional, Client, RubroType, DaySchedule, TenantUser } from '@/types/saas';
@@ -99,10 +101,21 @@ function TenantAdminContent() {
     setIsAddUserModalOpen(false);
   };
 
-  // Agenda Filter State
+  // Agenda Filter & Search State
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedProfessionalFilter, setSelectedProfessionalFilter] = useState<string>('all');
   const [agendaViewMode, setAgendaViewMode] = useState<'daily' | 'weekly'>('daily');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'pending' | 'completed' | 'cancelled'>('all');
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const handleCopyBookingLink = () => {
+    if (!currentTenant) return;
+    const url = `${window.location.origin}/reserva/${currentTenant.slug}`;
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   const getWeekDates = (baseDateStr: string) => {
     const dateObj = new Date(baseDateStr + 'T00:00:00');
@@ -201,12 +214,21 @@ function TenantAdminContent() {
   const tenantAppointments = appointments.filter(a => a.tenantId === currentTenant.id);
   const tenantClients = clients.filter(c => c.tenantId === currentTenant.id);
 
-  // Filter Appointments by Date & Professional
+  // Filter Appointments by Date, Professional, Status & Search Query
   const filteredAppointments = tenantAppointments.filter(app => {
     const matchesDate = app.date === selectedDate;
     const matchesProf = selectedProfessionalFilter === 'all' || app.professionalId === selectedProfessionalFilter;
-    return matchesDate && matchesProf;
+    const matchesStatus = statusFilter === 'all' || app.status === statusFilter;
+    const q = searchQuery.toLowerCase().trim();
+    const matchesSearch = !q || 
+      app.clientName.toLowerCase().includes(q) || 
+      app.clientPhone.includes(q);
+
+    return matchesDate && matchesProf && matchesStatus && matchesSearch;
   });
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayAppsCount = tenantAppointments.filter(a => a.date === todayStr && a.status !== 'cancelled').length;
 
   const saveAppointments = (updated: Appointment[]) => {
     setAppointments(updated);
@@ -435,7 +457,7 @@ function TenantAdminContent() {
   }).sort((a, b) => b.count - a.count);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-24 md:pb-8">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col pb-36 sm:pb-32">
       {/* existing top bar... */}
 
       
@@ -493,6 +515,15 @@ function TenantAdminContent() {
               </Link>
             )}
 
+            <button
+              onClick={handleCopyBookingLink}
+              className="px-2.5 py-1.5 text-xs font-bold text-emerald-300 hover:text-white bg-emerald-500/10 hover:bg-emerald-500/20 rounded-xl border border-emerald-500/20 transition flex items-center gap-1.5 shadow-sm"
+              title="Copiar link de reserva por WhatsApp"
+            >
+              {copiedLink ? <CopyCheck size={15} className="text-emerald-400" /> : <Copy size={15} />}
+              <span>{copiedLink ? '¡Copiado!' : 'Copiar Link'}</span>
+            </button>
+
             <Link
               href={`/reserva/${currentTenant.slug}`}
               target="_blank"
@@ -500,7 +531,7 @@ function TenantAdminContent() {
               title="Abrir página pública de reserva"
             >
               <ExternalLink size={15} />
-              <span>Ver Reserva</span>
+              <span className="hidden sm:inline">Ver Reserva</span>
             </Link>
 
             <button
@@ -517,7 +548,7 @@ function TenantAdminContent() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 max-w-4xl w-full mx-auto p-4 space-y-6">
+      <main className="flex-1 max-w-4xl w-full mx-auto p-4 space-y-6 pb-36">
 
         {/* TAB 1: AGENDA DE TURNOS */}
         {activeTab === 'agenda' && (
@@ -592,6 +623,44 @@ function TenantAdminContent() {
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Search & Status Filter Bar */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+              {/* Search input */}
+              <div className="relative w-full sm:w-64">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Buscar cliente o celular..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-8 pr-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Status Filter Chips */}
+              <div className="flex items-center gap-1 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+                {[
+                  { id: 'all', label: 'Todos' },
+                  { id: 'confirmed', label: '🟢 Confirmados' },
+                  { id: 'pending', label: '🟡 Pendientes' },
+                  { id: 'completed', label: '🔵 Completados' },
+                  { id: 'cancelled', label: '🔴 Cancelados' }
+                ].map(chip => (
+                  <button
+                    key={chip.id}
+                    onClick={() => setStatusFilter(chip.id as any)}
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold whitespace-nowrap transition border ${
+                      statusFilter === chip.id
+                        ? 'bg-slate-800 text-white border-slate-700 font-bold'
+                        : 'bg-slate-950/60 text-slate-400 border-slate-900 hover:text-slate-200'
+                    }`}
+                  >
+                    {chip.label}
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -1412,11 +1481,18 @@ function TenantAdminContent() {
 
           <button
             onClick={() => setActiveTab('agenda')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
+            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition relative ${
               activeTab === 'agenda' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
             }`}
           >
-            <Calendar size={18} />
+            <div className="relative">
+              <Calendar size={18} />
+              {todayAppsCount > 0 && (
+                <span className="absolute -top-1.5 -right-2.5 w-4 h-4 bg-indigo-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border border-slate-900 shadow-sm">
+                  {todayAppsCount}
+                </span>
+              )}
+            </div>
             <span className="text-[10px] font-semibold">Agenda</span>
           </button>
 
