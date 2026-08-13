@@ -28,19 +28,26 @@ import {
   AlertCircle,
   FileText,
   BarChart3,
-  TrendingUp
+  TrendingUp,
+  LogOut,
+  UserPlus,
+  KeyRound,
+  UserCheck
 } from 'lucide-react';
-import { Tenant, Appointment, Service, Professional, Client, RubroType, DaySchedule } from '@/types/saas';
+import { useRouter } from 'next/navigation';
+import { Tenant, Appointment, Service, Professional, Client, RubroType, DaySchedule, TenantUser } from '@/types/saas';
 import { 
   INITIAL_TENANTS, 
   INITIAL_APPOINTMENTS, 
   INITIAL_SERVICES, 
   INITIAL_PROFESSIONALS, 
   INITIAL_CLIENTS,
+  INITIAL_TENANT_USERS,
   DEFAULT_SCHEDULE 
 } from '@/lib/mockStore';
 
 function TenantAdminContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const tenantIdParam = searchParams.get('tenant');
 
@@ -55,6 +62,40 @@ function TenantAdminContent() {
   const [services, setServices] = useState<Service[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [tenantUsers, setTenantUsers] = useState<TenantUser[]>([]);
+
+  // User Access Modal Form
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'receptionist'>('receptionist');
+
+  const handleLogout = () => {
+    localStorage.removeItem('tuturnito_current_user');
+    router.push('/login');
+  };
+
+  const handleSaveTenantUser = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName || !newUserEmail || !currentTenant) return;
+
+    const newUser: TenantUser = {
+      id: `tu-${Date.now()}`,
+      tenantId: currentTenant.id,
+      name: newUserName,
+      email: newUserEmail,
+      role: newUserRole,
+      createdAt: new Date().toISOString().split('T')[0]
+    };
+
+    const updated = [newUser, ...tenantUsers];
+    setTenantUsers(updated);
+    localStorage.setItem('saas_tenant_users', JSON.stringify(updated));
+
+    setNewUserName('');
+    setNewUserEmail('');
+    setIsAddUserModalOpen(false);
+  };
 
   // Agenda Filter State
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -146,6 +187,9 @@ function TenantAdminContent() {
 
     const savedClients = localStorage.getItem('saas_clients');
     setClients(savedClients ? JSON.parse(savedClients) : INITIAL_CLIENTS);
+
+    const savedTenantUsers = localStorage.getItem('saas_tenant_users');
+    setTenantUsers(savedTenantUsers ? JSON.parse(savedTenantUsers) : INITIAL_TENANT_USERS);
   }, [tenantIdParam]);
 
   if (!currentTenant) return null;
@@ -443,6 +487,15 @@ function TenantAdminContent() {
             >
               <ExternalLink size={18} />
             </Link>
+
+            <button
+              onClick={handleLogout}
+              className="px-2.5 py-1.5 text-xs font-semibold text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 rounded-xl border border-rose-500/20 transition flex items-center gap-1.5"
+              title="Cerrar Sesión"
+            >
+              <LogOut size={16} />
+              <span className="hidden sm:inline">Salir</span>
+            </button>
           </div>
 
         </div>
@@ -1023,6 +1076,52 @@ function TenantAdminContent() {
               </div>
             </div>
 
+            {/* Business Users Section */}
+            <div className="space-y-3 pt-6 border-t border-slate-800">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <UserCheck size={18} className="text-emerald-400" /> Usuarios con Acceso al Panel ({tenantUsers.filter(u => u.tenantId === currentTenant.id).length})
+                  </h2>
+                  <p className="text-xs text-slate-400">Personal autorizado para administrar la agenda y turnos</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setNewUserName('');
+                    setNewUserEmail('');
+                    setIsAddUserModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition flex items-center gap-1.5"
+                >
+                  <UserPlus size={14} /> + Agregar Usuario
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {tenantUsers
+                  .filter(u => u.tenantId === currentTenant.id)
+                  .map(u => (
+                    <div key={u.id} className="glass-card p-4 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-sm shrink-0">
+                          {u.name.charAt(0)}
+                        </div>
+                        <div>
+                          <h3 className="text-sm font-bold text-white">{u.name}</h3>
+                          <p className="text-xs text-slate-400">{u.email}</p>
+                        </div>
+                      </div>
+
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        u.role === 'admin' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
+                      }`}>
+                        {u.role === 'admin' ? 'Admin' : 'Recepcionista'}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -1485,6 +1584,82 @@ function TenantAdminContent() {
                 </button>
                 <button type="submit" className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold shadow-md">
                   {editingProfessional ? 'Guardar Cambios' : 'Crear Profesional'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Dar Acceso a Nuevo Usuario */}
+      {isAddUserModalOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="glass-card bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <UserPlus size={18} className="text-emerald-400" />
+                Dar Acceso a Nuevo Colaborador
+              </h3>
+              <button 
+                onClick={() => setIsAddUserModalOpen(false)} 
+                className="text-slate-400 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveTenantUser} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Nombre Completo *</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Sofia Recepción, Gabriel Barbero"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Email de Acceso *</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="sofia@tucomercio.com"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1">Rol / Permisos</label>
+                <select
+                  value={newUserRole}
+                  onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'receptionist')}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-500"
+                >
+                  <option value="receptionist">Recepcionista / Ver Agenda y Turnos</option>
+                  <option value="admin">Administrador del Negocio</option>
+                </select>
+              </div>
+
+              <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-[11px] text-slate-400 space-y-1">
+                <span className="font-semibold text-slate-300 block">ℹ️ Instrucciones para el nuevo usuario:</span>
+                <p>El colaborador podrá ingresar en <strong>/login</strong> seleccionando "Acceso Empresa" con este email.</p>
+              </div>
+
+              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddUserModalOpen(false)} 
+                  className="text-xs text-slate-400 px-3 py-1.5"
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-md">
+                  Otorgar Acceso
                 </button>
               </div>
             </form>

@@ -1,4 +1,10 @@
-import { Tenant, Professional, Service, Appointment, Client, SuperAdminStats, DaySchedule } from '@/types/saas';
+import { Tenant, Professional, Service, Appointment, Client, SuperAdminStats, DaySchedule, TenantUser } from '@/types/saas';
+
+export const INITIAL_TENANT_USERS: TenantUser[] = [
+  { id: 'tu-1', tenantId: 't-1', name: 'Marcos Benítez', email: 'marcos@barberclub.com', role: 'admin', createdAt: '2026-01-15' },
+  { id: 'tu-2', tenantId: 't-1', name: 'Sofia Recepción', email: 'recepcion@barberclub.com', role: 'receptionist', createdAt: '2026-02-01' },
+  { id: 'tu-3', tenantId: 't-2', name: 'Dra. Valeria Gómez', email: 'valeria@esteticavital.com', role: 'admin', createdAt: '2026-02-01' }
+];
 
 export const DEFAULT_SCHEDULE: DaySchedule[] = [
   { day: 'lunes', label: 'Lunes', isOpen: true, openTime: '09:00', closeTime: '19:00', hasBreak: true, breakStart: '13:00', breakEnd: '14:00' },

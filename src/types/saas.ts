@@ -86,6 +86,15 @@ export interface Tenant {
   slotIntervalMinutes?: number;
 }
 
+export interface TenantUser {
+  id: string;
+  tenantId: string;
+  name: string;
+  email: string;
+  role: 'admin' | 'receptionist' | 'staff';
+  createdAt: string;
+}
+
 export interface SuperAdminStats {
   totalTenants: number;
   activeTenants: number;
