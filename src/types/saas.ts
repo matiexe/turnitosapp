@@ -70,6 +70,12 @@ export interface Client {
   notes?: string;
 }
 
+export interface TenantBranding {
+  logoUrl?: string;
+  bannerUrl?: string;
+  primaryColor?: string; // hex color e.g. '#10b981'
+}
+
 export interface Tenant {
   id: string;
   name: string;
@@ -84,6 +90,7 @@ export interface Tenant {
   whatsappConfig: WhatsAppConfig;
   schedule: DaySchedule[];
   slotIntervalMinutes?: number;
+  branding?: TenantBranding;
 }
 
 export interface TenantUser {

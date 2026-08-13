@@ -32,7 +32,9 @@ import {
   LogOut,
   UserPlus,
   KeyRound,
-  UserCheck
+  UserCheck,
+  Palette,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Tenant, Appointment, Service, Professional, Client, RubroType, DaySchedule, TenantUser } from '@/types/saas';
@@ -388,6 +390,18 @@ function TenantAdminContent() {
       slotIntervalMinutes: interval
     };
     setCurrentTenant(updatedTenant);
+    const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
+    setTenants(updatedTenants);
+    localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+  };
+
+  const handleUpdateBranding = (field: 'logoUrl' | 'bannerUrl' | 'primaryColor', value: string) => {
+    if (!currentTenant) return;
+    const currentBranding = currentTenant.branding || {};
+    const updatedBranding = { ...currentBranding, [field]: value };
+    const updatedTenant: Tenant = { ...currentTenant, branding: updatedBranding };
+    setCurrentTenant(updatedTenant);
+
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
@@ -1230,6 +1244,111 @@ function TenantAdminContent() {
                   )}
                 </div>
               ))}
+            </div>
+
+            {/* Branding & Customization Settings Card */}
+            <div className="glass-card p-6 rounded-2xl space-y-5 border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div>
+                  <h2 className="text-base font-bold text-white flex items-center gap-2">
+                    <Palette size={18} className="text-indigo-400" /> Personalización & Marca de tu Negocio
+                  </h2>
+                  <p className="text-xs text-slate-400">Personalizá el logo, portada e identidad visual de tu página pública de reserva</p>
+                </div>
+              </div>
+
+              {/* Logo URL */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">Logo / Foto de Perfil del Comercio</label>
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={currentTenant.branding?.logoUrl || ''}
+                  onChange={(e) => handleUpdateBranding('logoUrl', e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+                <span className="text-[10px] text-slate-400 block">Presets rápidos:</span>
+                <div className="flex items-center gap-2">
+                  {[
+                    'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=150',
+                    'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150',
+                    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+                    'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=150'
+                  ].map((url, idx) => (
+                    /* eslint-disable-next-html-next-element */
+                    <img
+                      key={idx}
+                      src={url}
+                      alt="Preset logo"
+                      onClick={() => handleUpdateBranding('logoUrl', url)}
+                      className={`w-9 h-9 rounded-xl object-cover cursor-pointer border ${
+                        currentTenant.branding?.logoUrl === url ? 'border-indigo-500 scale-105' : 'border-slate-800 opacity-60 hover:opacity-100'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* Banner URL */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">Banner de Portada (Página de Reserva)</label>
+                <input
+                  type="text"
+                  placeholder="https://..."
+                  value={currentTenant.branding?.bannerUrl || ''}
+                  onChange={(e) => handleUpdateBranding('bannerUrl', e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                />
+                <span className="text-[10px] text-slate-400 block">Banners predeterminados por estilo:</span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label: '💈 Barbería', url: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1200' },
+                    { label: '✨ Estética & Spa', url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200' },
+                    { label: '🧠 Psicología', url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200' },
+                    { label: '💇‍♀️ Peluquería Chic', url: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200' }
+                  ].map((b, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleUpdateBranding('bannerUrl', b.url)}
+                      className={`p-2 rounded-xl border text-[11px] font-bold text-left transition ${
+                        currentTenant.branding?.bannerUrl === b.url ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                      }`}
+                    >
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Primary Color Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-300">Color Primario de la Marca</label>
+                <div className="flex items-center gap-3">
+                  {[
+                    { name: 'Esmeralda', hex: '#10b981' },
+                    { name: 'Índigo', hex: '#6366f1' },
+                    { name: 'Rosa / Violeta', hex: '#ec4899' },
+                    { name: 'Ámbar / Dorado', hex: '#f59e0b' },
+                    { name: 'Cian / Turquesa', hex: '#06b6d4' },
+                    { name: 'Rojo Carmesí', hex: '#f43f5e' }
+                  ].map((c) => (
+                    <button
+                      key={c.hex}
+                      type="button"
+                      onClick={() => handleUpdateBranding('primaryColor', c.hex)}
+                      className={`w-8 h-8 rounded-full transition shadow-md flex items-center justify-center border-2 ${
+                        (currentTenant.branding?.primaryColor || '#10b981') === c.hex ? 'border-white scale-110' : 'border-transparent opacity-80 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: c.hex }}
+                      title={c.name}
+                    >
+                      {(currentTenant.branding?.primaryColor || '#10b981') === c.hex && <Check size={14} className="text-white drop-shadow" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
             </div>
 
           </div>

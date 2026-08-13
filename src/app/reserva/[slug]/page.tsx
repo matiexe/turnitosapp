@@ -187,18 +187,37 @@ export default function ClientBookingPage() {
       <div className="glass-card max-w-lg w-full bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl space-y-0">
         
         {/* Business Header Banner */}
-        <div className={`p-6 bg-gradient-to-r ${getRubroHeaderBg(tenant.rubro)} text-white space-y-2 relative`}>
-          <div className="flex items-center justify-between">
-            <span className="px-2.5 py-1 bg-black/20 backdrop-blur-md text-xs font-bold rounded-full uppercase tracking-wider">
+        <div 
+          className={`p-6 bg-gradient-to-r ${getRubroHeaderBg(tenant.rubro)} text-white space-y-3 relative bg-cover bg-center`}
+          style={tenant.branding?.bannerUrl ? { backgroundImage: `linear-gradient(to bottom, rgba(15, 23, 42, 0.4), rgba(15, 23, 42, 0.85)), url(${tenant.branding.bannerUrl})` } : {}}
+        >
+          <div className="flex items-center justify-between relative z-10">
+            <span className="px-2.5 py-1 bg-black/40 backdrop-blur-md text-xs font-bold rounded-full uppercase tracking-wider border border-white/10">
               {tenant.rubro}
             </span>
-            <span className="text-xs font-semibold bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1">
-              <ShieldCheck size={14} /> Reserva Instantánea
+            <span className="text-xs font-semibold bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full flex items-center gap-1 border border-white/10">
+              <ShieldCheck size={14} className="text-emerald-400" /> Reserva Instantánea
             </span>
           </div>
 
-          <h1 className="text-2xl font-black tracking-tight">{tenant.name}</h1>
-          <p className="text-xs text-white/80">Elegí tu turno en 3 simples pasos</p>
+          <div className="flex items-center gap-3 relative z-10 pt-1">
+            {tenant.branding?.logoUrl ? (
+              /* eslint-disable-next-html-next-element */
+              <img 
+                src={tenant.branding.logoUrl} 
+                alt={tenant.name} 
+                className="w-14 h-14 rounded-2xl object-cover border-2 border-white/20 shadow-xl shrink-0" 
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-xl font-black text-white shrink-0">
+                {tenant.name.charAt(0)}
+              </div>
+            )}
+            <div>
+              <h1 className="text-2xl font-black tracking-tight drop-shadow-md">{tenant.name}</h1>
+              <p className="text-xs text-white/80">Elegí tu turno en 3 simples pasos</p>
+            </div>
+          </div>
         </div>
 
         {/* Step Indicator */}

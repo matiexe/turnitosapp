@@ -37,6 +37,11 @@ export const INITIAL_TENANTS: Tenant[] = [
       autoRemind24h: true,
       autoRemind2h: true,
       welcomeMessage: '¡Hola! Bienvenido a Barber Club. ¿Qué turno te gustaría reservar hoy?'
+    },
+    branding: {
+      logoUrl: 'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=150',
+      bannerUrl: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1200',
+      primaryColor: '#10b981'
     }
   },
   {
@@ -59,6 +64,11 @@ export const INITIAL_TENANTS: Tenant[] = [
       autoRemind24h: true,
       autoRemind2h: true,
       welcomeMessage: 'Hola 👋 Bienvenida a Estética Vital. Podés agendar tu sesión de tratamiento facial o corporal.'
+    },
+    branding: {
+      logoUrl: 'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150',
+      bannerUrl: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200',
+      primaryColor: '#ec4899'
     }
   },
   {
