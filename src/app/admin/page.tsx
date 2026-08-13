@@ -467,9 +467,18 @@ function TenantAdminContent() {
           
           {/* Tenant Switcher & Info */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-indigo-400 shrink-0">
-              {currentTenant.name.charAt(0)}
-            </div>
+            {currentTenant.branding?.logoUrl ? (
+              /* eslint-disable-next-html-next-element */
+              <img
+                src={currentTenant.branding.logoUrl}
+                alt={currentTenant.name}
+                className="w-10 h-10 rounded-xl object-cover border border-slate-700 shadow-md shrink-0"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center font-bold text-indigo-400 shrink-0">
+                {currentTenant.name.charAt(0)}
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-1.5">
                 {(currentUserRole === 'superadmin' || tenantIdParam === 'demo') ? (
