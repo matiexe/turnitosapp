@@ -57,7 +57,7 @@ import {
 function TenantAdminContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tenantIdParam = searchParams.get('tenant');
+  const tenantIdParam = searchParams?.get('tenant');
 
   // State
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -546,6 +546,8 @@ function TenantAdminContent() {
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+  };
+
   const handleDeleteService = (serviceId: string) => {
     if (!confirm('¿Estás seguro de eliminar este servicio?')) return;
     const updated = services.filter(s => s.id !== serviceId);
@@ -2658,7 +2660,6 @@ function TenantAdminContent() {
 
     </div>
   );
-}
 }
 
 export default function TenantAdminPage() {
