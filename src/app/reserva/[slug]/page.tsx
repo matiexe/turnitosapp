@@ -132,7 +132,16 @@ export default function ClientBookingPage() {
 
   const dynamicSlots = generateDynamicSlots();
 
-  if (!tenant) return null;
+  if (!tenant) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 space-y-3">
+        <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white shadow-xl animate-pulse">
+          <Calendar size={24} />
+        </div>
+        <p className="text-xs font-semibold text-slate-400">Cargando datos de reserva...</p>
+      </div>
+    );
+  }
 
   const handleConfirmBooking = (e: React.FormEvent) => {
     e.preventDefault();

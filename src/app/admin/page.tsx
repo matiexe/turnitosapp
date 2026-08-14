@@ -318,24 +318,32 @@ function TenantAdminContent() {
 
           const targetId = tenantIdParam || sessionTenantId;
           const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0];
-          setCurrentTenant(found);
           if (found) {
+            setCurrentTenant(found);
             setEditBusinessName(found.name);
             setEditBusinessPhone(found.phone);
             setEditBusinessSlug(found.slug);
             setUserProfileName(found.ownerName);
+          } else {
+            setCurrentTenant(loadedTenants[0] || INITIAL_TENANTS[0]);
           }
         } else {
-          // Fallback to local storage
+          // Fallback to local storage or INITIAL_TENANTS
           const savedTenants = localStorage.getItem('saas_tenants');
           const loadedTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
           setTenants(loadedTenants);
           const targetId = tenantIdParam || sessionTenantId;
-          const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0];
+          const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0] || INITIAL_TENANTS[0];
           setCurrentTenant(found);
         }
       } catch (err) {
         console.error('API load error, using cached storage:', err);
+        const savedTenants = localStorage.getItem('saas_tenants');
+        const loadedTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
+        setTenants(loadedTenants);
+        const targetId = tenantIdParam || sessionTenantId;
+        const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0] || INITIAL_TENANTS[0];
+        setCurrentTenant(found);
       }
     }
 
@@ -358,7 +366,19 @@ function TenantAdminContent() {
     setTenantUsers(savedTenantUsers ? JSON.parse(savedTenantUsers) : INITIAL_TENANT_USERS);
   }, [tenantIdParam]);
 
-  if (!currentTenant) return null;
+  if (!currentTenant) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-6 space-y-4">
+        <div className="w-14 h-14 rounded-3xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-emerald-500/20 animate-pulse">
+          <Rocket size={28} />
+        </div>
+        <div className="text-center space-y-1">
+          <h3 className="text-base font-bold text-white tracking-tight">Cargando Panel de tu Negocio...</h3>
+          <p className="text-xs text-slate-400">tuturnito<span className="text-emerald-400">.app</span></p>
+        </div>
+      </div>
+    );
+  }
 
   const tenantServices = services.filter(s => s.tenantId === currentTenant.id);
   const tenantProfessionals = professionals.filter(p => p.tenantId === currentTenant.id);
