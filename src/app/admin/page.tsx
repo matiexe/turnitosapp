@@ -62,7 +62,8 @@ function TenantAdminContent() {
   // State
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [currentTenant, setCurrentTenant] = useState<Tenant | null>(null);
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'whatsapp' | 'horarios' | 'servicios' | 'configuracion' | 'clientes'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'agenda' | 'configuracion' | 'clientes'>('dashboard');
+  const [configSubTab, setConfigSubTab] = useState<'general' | 'branding' | 'services' | 'horarios' | 'whatsapp' | 'profile'>('general');
   const [currentUserRole, setCurrentUserRole] = useState<'superadmin' | 'tenant_admin' | 'guest'>('tenant_admin');
 
   // Business Data
@@ -220,7 +221,7 @@ function TenantAdminContent() {
     }, 1200);
   };
 
-  const handleCompleteOnboarding = () => {
+  const handleCompleteOnboarding = async () => {
     if (!currentTenant) return;
     const updatedTenant: Tenant = {
       ...currentTenant,
@@ -230,6 +231,14 @@ function TenantAdminContent() {
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+
+    try {
+      await fetch(`/api/tenants/${currentTenant.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hasCompletedOnboarding: true })
+      });
+    } catch (e) {}
   };
 
   const getWeekDates = (baseDateStr: string) => {
@@ -513,6 +522,27 @@ function TenantAdminContent() {
       }
     };
 
+    setCurrentTenant(updatedTenant);
+    const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
+    setTenants(updatedTenants);
+    localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+  const handleDeleteService = (serviceId: string) => {
+    if (!confirm('¿Estás seguro de eliminar este servicio?')) return;
+    const updated = services.filter(s => s.id !== serviceId);
+    setServices(updated);
+    localStorage.setItem('saas_services', JSON.stringify(updated));
+  };
+
+  const handleUpdateWhatsappConfig = (key: keyof Tenant['whatsappConfig'], value: any) => {
+    if (!currentTenant) return;
+    const updatedWhatsapp = {
+      ...currentTenant.whatsappConfig,
+      [key]: value
+    };
+    const updatedTenant: Tenant = {
+      ...currentTenant,
+      whatsappConfig: updatedWhatsapp
+    };
     setCurrentTenant(updatedTenant);
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
@@ -1123,585 +1153,620 @@ function TenantAdminContent() {
           </div>
         )}
 
-        {/* TAB 2: WHATSAPP CONNECTION MANAGER */}
-        {activeTab === 'whatsapp' && (
-          <div className="space-y-6">
-            
-            <div className="glass-card p-6 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <div>
-                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                    <MessageSquare size={20} className="text-emerald-400" /> Configuración de WhatsApp del Negocio
-                  </h2>
-                  <p className="text-xs text-slate-400">Instancia vinculada para enviar notificaciones y atender bot</p>
-                </div>
-                
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  currentTenant.whatsappConfig.status === 'connected' 
-                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
-                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                }`}>
-                  {currentTenant.whatsappConfig.status === 'connected' ? '🟢 Conectado' : '🟡 QR Pendiente'}
-                </span>
-              </div>
 
-              <div className="flex flex-col md:flex-row items-center gap-6 py-2">
-                <div className="p-4 bg-white rounded-2xl shrink-0 shadow-lg border border-slate-200">
-                  {/* eslint-disable-next-html-next-element */}
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=SAAS_TENANT_QR_${currentTenant.slug}`}
-                    alt="WhatsApp QR Code"
-                    className="w-40 h-40"
-                  />
-                </div>
 
-                <div className="space-y-3 text-center md:text-left">
-                  <h3 className="text-sm font-bold text-white">Pasos para conectar el WhatsApp de tu empresa:</h3>
-                  <ol className="text-xs text-slate-300 space-y-1.5 list-decimal list-inside">
-                    <li>Abre <strong>WhatsApp</strong> en el teléfono de tu negocio.</li>
-                    <li>Ve a <strong>Menú / Configuración ➔ Dispositivos vinculados</strong>.</li>
-                    <li>Toca en <strong>Vincular un dispositivo</strong> y apunta la cámara a este QR.</li>
-                  </ol>
-
-                  <div className="pt-2">
-                    <button
-                      onClick={toggleWhatsAppConnection}
-                      className="px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition shadow-lg shadow-emerald-600/30"
-                    >
-                      {currentTenant.whatsappConfig.status === 'connected' ? 'Simular Desconexión de WhatsApp' : 'Simular QR Escaneado Correctamente'}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Automation Settings */}
-            <div className="glass-card p-6 rounded-2xl space-y-4">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Mensajes y Recordatorios Automáticos</h3>
-              
-              <div className="space-y-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">Mensaje de Bienvenida del Bot</label>
-                  <textarea
-                    rows={2}
-                    defaultValue={currentTenant.whatsappConfig.welcomeMessage}
-                    className="w-full bg-slate-900 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-800">
-                  <div>
-                    <span className="text-xs font-bold text-white block">Recordatorio 24 horas antes</span>
-                    <span className="text-[11px] text-slate-400">Envía un mensaje de confirmación 1 día antes del turno.</span>
-                  </div>
-                  <input type="checkbox" defaultChecked={currentTenant.whatsappConfig.autoRemind24h} className="w-4 h-4 accent-emerald-500" />
-                </div>
-
-                <div className="flex items-center justify-between p-3 bg-slate-900/60 rounded-xl border border-slate-800">
-                  <div>
-                    <span className="text-xs font-bold text-white block">Recordatorio 2 horas antes</span>
-                    <span className="text-[11px] text-slate-400">Recordatorio express el mismo día del turno.</span>
-                  </div>
-                  <input type="checkbox" defaultChecked={currentTenant.whatsappConfig.autoRemind2h} className="w-4 h-4 accent-emerald-500" />
-                </div>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* TAB 3: SERVICIOS Y PROFESIONALES */}
-        {activeTab === 'servicios' && (
-          <div className="space-y-6">
-            
-            {/* Services Section */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <Scissors size={18} className="text-amber-400" /> Catálogo de Servicios ({tenantServices.length})
-                </h2>
-                <button
-                  onClick={() => setIsAddServiceOpen(true)}
-                  className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition"
-                >
-                  + Agregar Servicio
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {tenantServices.map(s => (
-                  <div key={s.id} className="glass-card p-4 rounded-2xl space-y-1">
-                    <div className="flex items-start justify-between">
-                      <h3 className="text-sm font-bold text-white">{s.name}</h3>
-                      <span className="text-sm font-extrabold text-emerald-400">${s.price.toLocaleString('es-AR')}</span>
-                    </div>
-                    <p className="text-xs text-slate-400 flex items-center gap-2">
-                      <span>⏱️ {s.durationMinutes} min</span>
-                      {s.requireDeposit && (
-                        <span className="px-2 py-0.5 bg-pink-500/10 text-pink-400 text-[10px] font-semibold rounded border border-pink-500/20">
-                          Seña ${s.depositAmount?.toLocaleString('es-AR')}
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Professionals Section */}
-            <div className="space-y-3 pt-4 border-t border-slate-800">
-              <div className="flex items-center justify-between">
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <Users size={18} className="text-indigo-400" /> Equipo de Profesionales ({tenantProfessionals.length})
-                </h2>
-                <button
-                  onClick={() => {
-                    setEditingProfessional(null);
-                    setProfName('');
-                    setProfSpecialty('');
-                    setProfAvatarUrl('');
-                    setIsProfessionalModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition"
-                >
-                  + Agregar Profesional
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {tenantProfessionals.map(p => (
-                  <div key={p.id} className="glass-card p-4 rounded-2xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      {/* eslint-disable-next-html-next-element */}
-                      <img src={p.avatarUrl} alt={p.name} className="w-12 h-12 rounded-xl object-cover border border-slate-700 shrink-0" />
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h3 className="text-sm font-bold text-white">{p.name}</h3>
-                          <span className={`w-2 h-2 rounded-full ${p.active ? 'bg-emerald-400' : 'bg-rose-500'}`} title={p.active ? 'Activo' : 'Inactivo'} />
-                        </div>
-                        <p className="text-xs text-slate-400">{p.specialty}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleOpenEditProfessional(p)}
-                        className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs transition"
-                        title="Editar profesional"
-                      >
-                        ✏️
-                      </button>
-                      <button
-                        onClick={() => handleToggleProfessionalActive(p.id)}
-                        className="p-1.5 bg-slate-800 hover:bg-slate-700 rounded-lg text-xs transition"
-                        title={p.active ? 'Desactivar' : 'Activar'}
-                      >
-                        {p.active ? '🟢' : '🔴'}
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProfessional(p.id)}
-                        className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs transition border border-rose-500/20"
-                        title="Eliminar profesional"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Business Users Section */}
-            <div className="space-y-3 pt-6 border-t border-slate-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-base font-bold text-white flex items-center gap-2">
-                    <UserCheck size={18} className="text-emerald-400" /> Usuarios con Acceso al Panel ({tenantUsers.filter(u => u.tenantId === currentTenant.id).length})
-                  </h2>
-                  <p className="text-xs text-slate-400">Personal autorizado para administrar la agenda y turnos</p>
-                </div>
-                <button
-                  onClick={() => {
-                    setNewUserName('');
-                    setNewUserEmail('');
-                    setIsAddUserModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition flex items-center gap-1.5"
-                >
-                  <UserPlus size={14} /> + Agregar Usuario
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {tenantUsers
-                  .filter(u => u.tenantId === currentTenant.id)
-                  .map(u => (
-                    <div key={u.id} className="glass-card p-4 rounded-2xl flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-sm shrink-0">
-                          {u.name.charAt(0)}
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-bold text-white">{u.name}</h3>
-                          <p className="text-xs text-slate-400">{u.email}</p>
-                        </div>
-                      </div>
-
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                        u.role === 'admin' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
-                      }`}>
-                        {u.role === 'admin' ? 'Admin' : 'Recepcionista'}
-                      </span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* TAB: HORARIOS DE ATENCIÓN */}
-        {activeTab === 'horarios' && (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-base font-bold text-white flex items-center gap-2">
-                  <Clock size={18} className="text-indigo-400" /> Horarios Disponibles del Negocio
-                </h2>
-                <p className="text-xs text-slate-400">Configurá los días y rangos de atención para las reservas web</p>
-              </div>
-
-              {/* Slot interval picker */}
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">Intervalo:</span>
-                <select
-                  value={currentTenant.slotIntervalMinutes || 30}
-                  onChange={(e) => handleUpdateInterval(Number(e.target.value))}
-                  className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
-                >
-                  <option value={15}>Cada 15 min</option>
-                  <option value={30}>Cada 30 min</option>
-                  <option value={45}>Cada 45 min</option>
-                  <option value={60}>Cada 60 min</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Days Schedule List */}
-            <div className="space-y-3">
-              {activeSchedule.map((dayItem, idx) => (
-                <div key={dayItem.day} className="glass-card p-4 rounded-2xl space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={dayItem.isOpen}
-                        onChange={(e) => handleUpdateScheduleDay(idx, 'isOpen', e.target.checked)}
-                        className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
-                      />
-                      <span className="text-sm font-bold text-white">{dayItem.label}</span>
-                    </div>
-
-                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      dayItem.isOpen ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'
-                    }`}>
-                      {dayItem.isOpen ? 'Abierto' : 'Cerrado'}
-                    </span>
-                  </div>
-
-                  {dayItem.isOpen && (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-slate-800/60 text-xs">
-                      
-                      {/* Horario General */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-slate-400 shrink-0">Horario:</span>
-                        <input
-                          type="time"
-                          value={dayItem.openTime}
-                          onChange={(e) => handleUpdateScheduleDay(idx, 'openTime', e.target.value)}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-white text-xs"
-                        />
-                        <span className="text-slate-500">a</span>
-                        <input
-                          type="time"
-                          value={dayItem.closeTime}
-                          onChange={(e) => handleUpdateScheduleDay(idx, 'closeTime', e.target.value)}
-                          className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-white text-xs"
-                        />
-                      </div>
-
-                      {/* Pausa / Almuerzo */}
-                      <div className="flex items-center gap-2">
-                        <label className="text-slate-400 flex items-center gap-1 shrink-0">
-                          <input
-                            type="checkbox"
-                            checked={dayItem.hasBreak || false}
-                            onChange={(e) => handleUpdateScheduleDay(idx, 'hasBreak', e.target.checked)}
-                            className="w-3.5 h-3.5 accent-indigo-500"
-                          />
-                          <span>Pausa:</span>
-                        </label>
-
-                        {dayItem.hasBreak && (
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="time"
-                              value={dayItem.breakStart || '13:00'}
-                              onChange={(e) => handleUpdateScheduleDay(idx, 'breakStart', e.target.value)}
-                              className="bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-1 text-white text-[11px]"
-                            />
-                            <span className="text-slate-500">a</span>
-                            <input
-                              type="time"
-                              value={dayItem.breakEnd || '14:00'}
-                              onChange={(e) => handleUpdateScheduleDay(idx, 'breakEnd', e.target.value)}
-                              className="bg-slate-950 border border-slate-800 rounded-lg px-1.5 py-1 text-white text-[11px]"
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-          </div>
-        )}
-
-        {/* TAB: CONFIGURACIÓN GENERAL & PERSONALIZACIÓN */}
+        {/* TAB: CONFIGURACIÓN GENERAL CON MENÚ INTERNO */}
         {activeTab === 'configuracion' && (
           <div className="space-y-6 animate-in fade-in duration-200">
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <Settings size={18} className="text-indigo-400" /> Configuración General del Negocio
+                <Settings size={18} className="text-indigo-400" /> Configuración del Negocio
               </h2>
-              <p className="text-xs text-slate-400">Administrá los datos de tu comercio, tu perfil personal e identidad visual</p>
+              <p className="text-xs text-slate-400">Navegá entre las opciones para personalizar tu comercio, servicios, horarios y WhatsApp</p>
             </div>
 
-            {/* CARD 1: DATOS DEL NEGOCIO */}
-            <form onSubmit={handleSaveTenantInfo} className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Building size={16} className="text-emerald-400" /> Datos de la Empresa / Comercio
-                </h3>
-                {tenantSaveMsg && (
-                  <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
-                    {tenantSaveMsg}
-                  </span>
-                )}
-              </div>
+            {/* Sub-Menú de Navegación dentro de Config. */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-2 border-b border-slate-800 scrollbar-none">
+              <button
+                type="button"
+                onClick={() => setConfigSubTab('general')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  configSubTab === 'general'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <Building size={14} /> Datos del Comercio
+              </button>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-slate-300">Nombre del Negocio</label>
-                  <input
-                    type="text"
-                    value={editBusinessName}
-                    onChange={(e) => setEditBusinessName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                </div>
+              <button
+                type="button"
+                onClick={() => setConfigSubTab('branding')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  configSubTab === 'branding'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <Palette size={14} /> Personalización & Marca
+              </button>
 
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-slate-300">WhatsApp de Contacto / Consultas</label>
-                  <input
-                    type="text"
-                    value={editBusinessPhone}
-                    onChange={(e) => setEditBusinessPhone(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                </div>
+              <button
+                type="button"
+                onClick={() => setConfigSubTab('services')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  configSubTab === 'services'
+                    ? 'bg-amber-400 text-slate-950 shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <Briefcase size={14} /> Servicios & Precios
+              </button>
 
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-slate-300">Slug de URL Pública (`tuturnito.app/reserva/[slug]`)</label>
-                  <input
-                    type="text"
-                    value={editBusinessSlug}
-                    onChange={(e) => setEditBusinessSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                </div>
+              <button
+                type="button"
+                onClick={() => setConfigSubTab('horarios')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  configSubTab === 'horarios'
+                    ? 'bg-indigo-500 text-white shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <Clock size={14} /> Días & Horarios
+              </button>
 
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-slate-300">Rubro del Negocio</label>
-                  <input
-                    type="text"
-                    disabled
-                    value={currentTenant.rubro.toUpperCase()}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
-                  />
-                </div>
-              </div>
+              <button
+                type="button"
+                onClick={() => setConfigSubTab('whatsapp')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  configSubTab === 'whatsapp'
+                    ? 'bg-emerald-500 text-slate-950 shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <MessageSquare size={14} /> WhatsApp & Avisos
+              </button>
 
-              <div className="flex justify-end pt-2">
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition"
-                >
-                  Guardar Datos del Negocio
-                </button>
-              </div>
-            </form>
-
-            {/* CARD 2: PERFIL DEL USUARIO EN SESIÓN (PERSONA LOGUEADA) */}
-            <form onSubmit={handleSaveUserProfile} className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <UserIcon size={16} className="text-indigo-400" /> Perfil de Usuario Logueado (Tus Datos)
-                </h3>
-                {profileSaveMsg && (
-                  <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
-                    {profileSaveMsg}
-                  </span>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-slate-300">Nombre del Titular / Usuario</label>
-                  <input
-                    type="text"
-                    value={userProfileName}
-                    onChange={(e) => setUserProfileName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="font-semibold text-slate-300">Email Registrado (Acceso)</label>
-                  <input
-                    type="email"
-                    disabled
-                    value={currentTenant.ownerEmail}
-                    className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
-                  />
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsPasswordModalOpen(true)}
-                  className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
-                >
-                  <Lock size={14} /> Cambiar / Resetear Contraseña
-                </button>
-
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition"
-                >
-                  Actualizar Perfil
-                </button>
-              </div>
-            </form>
-
-            {/* Branding & Customization Settings Card */}
-            <div className="glass-card p-6 rounded-2xl space-y-5 border border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-                <div>
-                  <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Palette size={16} className="text-indigo-400" /> Personalización & Marca de tu Negocio
-                  </h3>
-                  <p className="text-xs text-slate-400">Personalizá el logo, portada e identidad visual de tu página pública de reserva</p>
-                </div>
-              </div>
-
-              {/* Logo URL */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Logo / Foto de Perfil del Comercio</label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={currentTenant.branding?.logoUrl || ''}
-                  onChange={(e) => handleUpdateBranding('logoUrl', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                />
-                <span className="text-[10px] text-slate-400 block">Presets rápidos:</span>
-                <div className="flex items-center gap-2">
-                  {[
-                    'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=150',
-                    'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150',
-                    'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-                    'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=150'
-                  ].map((url, idx) => (
-                    /* eslint-disable-next-html-next-element */
-                    <img
-                      key={idx}
-                      src={url}
-                      alt="Preset logo"
-                      onClick={() => handleUpdateBranding('logoUrl', url)}
-                      className={`w-9 h-9 rounded-xl object-cover cursor-pointer border ${
-                        currentTenant.branding?.logoUrl === url ? 'border-indigo-500 scale-105' : 'border-slate-800 opacity-60 hover:opacity-100'
-                      }`}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Banner URL */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Banner de Portada (Página de Reserva)</label>
-                <input
-                  type="text"
-                  placeholder="https://..."
-                  value={currentTenant.branding?.bannerUrl || ''}
-                  onChange={(e) => handleUpdateBranding('bannerUrl', e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                />
-                <span className="text-[10px] text-slate-400 block">Banners predeterminados por estilo:</span>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    { label: '💈 Barbería', url: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1200' },
-                    { label: '✨ Estética & Spa', url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200' },
-                    { label: '🧠 Psicología', url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200' },
-                    { label: '💇‍♀️ Peluquería Chic', url: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200' }
-                  ].map((b, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() => handleUpdateBranding('bannerUrl', b.url)}
-                      className={`p-2 rounded-xl border text-[11px] font-bold text-left transition ${
-                        currentTenant.branding?.bannerUrl === b.url ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                      }`}
-                    >
-                      {b.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Primary Color Selector */}
-              <div className="space-y-2">
-                <label className="block text-xs font-semibold text-slate-300">Color Primario de la Marca</label>
-                <div className="flex items-center gap-3">
-                  {[
-                    { name: 'Esmeralda', hex: '#10b981' },
-                    { name: 'Índigo', hex: '#6366f1' },
-                    { name: 'Rosa / Violeta', hex: '#ec4899' },
-                    { name: 'Ámbar / Dorado', hex: '#f59e0b' },
-                    { name: 'Cian / Turquesa', hex: '#06b6d4' },
-                    { name: 'Rojo Carmesí', hex: '#f43f5e' }
-                  ].map((c) => (
-                    <button
-                      key={c.hex}
-                      type="button"
-                      onClick={() => handleUpdateBranding('primaryColor', c.hex)}
-                      className={`w-8 h-8 rounded-full transition shadow-md flex items-center justify-center border-2 ${
-                        (currentTenant.branding?.primaryColor || '#10b981') === c.hex ? 'border-white scale-110' : 'border-transparent opacity-80 hover:opacity-100'
-                      }`}
-                      style={{ backgroundColor: c.hex }}
-                      title={c.name}
-                    >
-                      {(currentTenant.branding?.primaryColor || '#10b981') === c.hex && <Check size={14} className="text-white drop-shadow" />}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
+              <button
+                type="button"
+                onClick={() => setConfigSubTab('profile')}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap flex items-center gap-1.5 ${
+                  configSubTab === 'profile'
+                    ? 'bg-indigo-600 text-white shadow-md'
+                    : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
+                }`}
+              >
+                <UserIcon size={14} /> Mi Perfil
+              </button>
             </div>
+
+            {/* SUB-TAB 1: DATOS DEL NEGOCIO & USUARIOS DE ACCESO */}
+            {configSubTab === 'general' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <form onSubmit={handleSaveTenantInfo} className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Building size={16} className="text-emerald-400" /> Datos de la Empresa / Comercio
+                    </h3>
+                    {tenantSaveMsg && (
+                      <span className="text-xs font-semibold text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20">
+                        {tenantSaveMsg}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-slate-300">Nombre del Negocio</label>
+                      <input
+                        type="text"
+                        value={editBusinessName}
+                        onChange={(e) => setEditBusinessName(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-slate-300">WhatsApp de Contacto / Consultas</label>
+                      <input
+                        type="text"
+                        value={editBusinessPhone}
+                        onChange={(e) => setEditBusinessPhone(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-slate-300">Slug de URL Pública (`tuturnito.app/reserva/[slug]`)</label>
+                      <input
+                        type="text"
+                        value={editBusinessSlug}
+                        onChange={(e) => setEditBusinessSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-slate-300">Rubro del Negocio</label>
+                      <input
+                        type="text"
+                        disabled
+                        value={currentTenant.rubro.toUpperCase()}
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-2">
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20 transition"
+                    >
+                      Guardar Datos del Negocio
+                    </button>
+                  </div>
+                </form>
+
+                {/* Business Users Section */}
+                <div className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <UserCheck size={16} className="text-emerald-400" /> Usuarios con Acceso al Panel ({tenantUsers.filter(u => u.tenantId === currentTenant.id).length})
+                      </h3>
+                      <p className="text-xs text-slate-400">Personal autorizado para administrar la agenda y turnos</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewUserName('');
+                        setNewUserEmail('');
+                        setIsAddUserModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition flex items-center gap-1.5"
+                    >
+                      <UserPlus size={14} /> + Agregar Usuario
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {tenantUsers
+                      .filter(u => u.tenantId === currentTenant.id)
+                      .map(u => (
+                        <div key={u.id} className="bg-slate-950 p-3.5 rounded-xl border border-slate-800/80 flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-3">
+                            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-bold flex items-center justify-center text-xs shrink-0">
+                              {u.name.charAt(0)}
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-white">{u.name}</h4>
+                              <p className="text-[11px] text-slate-400">{u.email}</p>
+                            </div>
+                          </div>
+
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                            u.role === 'admin' ? 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30' : 'bg-slate-800 text-slate-400'
+                          }`}>
+                            {u.role === 'admin' ? 'Admin' : 'Recepcionista'}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 2: PERSONALIZACIÓN & BRANDING */}
+            {configSubTab === 'branding' && (
+              <div className="glass-card p-6 rounded-2xl space-y-5 border border-slate-800 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Palette size={16} className="text-indigo-400" /> Personalización & Marca de tu Negocio
+                    </h3>
+                    <p className="text-xs text-slate-400">Personalizá el logo, portada e identidad visual de tu página pública de reserva</p>
+                  </div>
+                </div>
+
+                {/* Logo URL */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">Logo / Foto de Perfil del Comercio</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={currentTenant.branding?.logoUrl || ''}
+                    onChange={(e) => handleUpdateBranding('logoUrl', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Presets rápidos:</span>
+                  <div className="flex items-center gap-2">
+                    {[
+                      'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=150',
+                      'https://images.unsplash.com/photo-1570172619644-dfd03ed5d881?w=150',
+                      'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
+                      'https://images.unsplash.com/photo-1622286342621-4bd786c2447c?w=150'
+                    ].map((url, idx) => (
+                      /* eslint-disable-next-html-next-element */
+                      <img
+                        key={idx}
+                        src={url}
+                        alt="Preset logo"
+                        onClick={() => handleUpdateBranding('logoUrl', url)}
+                        className={`w-9 h-9 rounded-xl object-cover cursor-pointer border ${
+                          currentTenant.branding?.logoUrl === url ? 'border-indigo-500 scale-105' : 'border-slate-800 opacity-60 hover:opacity-100'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Banner URL */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">Banner de Portada (Página de Reserva)</label>
+                  <input
+                    type="text"
+                    placeholder="https://..."
+                    value={currentTenant.branding?.bannerUrl || ''}
+                    onChange={(e) => handleUpdateBranding('bannerUrl', e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                  />
+                  <span className="text-[10px] text-slate-400 block">Banners predeterminados por estilo:</span>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      { label: '💈 Barbería', url: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1200' },
+                      { label: '✨ Estética & Spa', url: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?w=1200' },
+                      { label: '🧠 Psicología', url: 'https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200' },
+                      { label: '💇‍♀️ Peluquería Chic', url: 'https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1200' }
+                    ].map((b, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => handleUpdateBranding('bannerUrl', b.url)}
+                        className={`p-2 rounded-xl border text-[11px] font-bold text-left transition ${
+                          currentTenant.branding?.bannerUrl === b.url ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Primary Color Selector */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-semibold text-slate-300">Color Primario de la Marca</label>
+                  <div className="flex items-center gap-3">
+                    {[
+                      { name: 'Esmeralda', hex: '#10b981' },
+                      { name: 'Índigo', hex: '#6366f1' },
+                      { name: 'Rosa / Violeta', hex: '#ec4899' },
+                      { name: 'Ámbar / Dorado', hex: '#f59e0b' },
+                      { name: 'Cian / Turquesa', hex: '#06b6d4' },
+                      { name: 'Rojo Carmesí', hex: '#f43f5e' }
+                    ].map((c) => (
+                      <button
+                        key={c.hex}
+                        type="button"
+                        onClick={() => handleUpdateBranding('primaryColor', c.hex)}
+                        className={`w-8 h-8 rounded-full transition shadow-md flex items-center justify-center border-2 ${
+                          (currentTenant.branding?.primaryColor || '#10b981') === c.hex ? 'border-white scale-110' : 'border-transparent opacity-80 hover:opacity-100'
+                        }`}
+                        style={{ backgroundColor: c.hex }}
+                        title={c.name}
+                      >
+                        {(currentTenant.branding?.primaryColor || '#10b981') === c.hex && <Check size={14} className="text-white drop-shadow" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 3: SERVICIOS & PRECIOS + EQUIPO DE PROFESIONALES */}
+            {configSubTab === 'services' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                {/* Services */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Briefcase size={16} className="text-amber-400" /> Servicios & Precios ({tenantServices.length})
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNewServiceName('');
+                        setNewServiceDuration(30);
+                        setNewServicePrice(10000);
+                        setIsAddServiceOpen(true);
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl transition"
+                    >
+                      + Agregar Servicio
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {tenantServices.map(s => (
+                      <div key={s.id} className="glass-card p-4 rounded-2xl flex items-center justify-between">
+                        <div>
+                          <h4 className="text-sm font-bold text-white">{s.name}</h4>
+                          <p className="text-xs text-slate-400">⏱️ {s.durationMinutes} min</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-black text-amber-400">${s.price.toLocaleString('es-AR')}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteService(s.id)}
+                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs transition border border-rose-500/20"
+                            title="Eliminar servicio"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Professionals */}
+                <div className="space-y-3 pt-4 border-t border-slate-800">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Users size={16} className="text-indigo-400" /> Equipo de Profesionales ({tenantProfessionals.length})
+                    </h3>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProfessional(null);
+                        setProfName('');
+                        setProfSpecialty('');
+                        setProfAvatarUrl('');
+                        setIsProfessionalModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition"
+                    >
+                      + Agregar Profesional
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {tenantProfessionals.map(p => (
+                      <div key={p.id} className="glass-card p-4 rounded-2xl flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          {/* eslint-disable-next-html-next-element */}
+                          <img src={p.avatarUrl} alt={p.name} className="w-10 h-10 rounded-xl object-cover border border-slate-700 shrink-0" />
+                          <div>
+                            <h4 className="text-sm font-bold text-white">{p.name}</h4>
+                            <p className="text-xs text-slate-400">{p.specialty}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditProfessional(p)}
+                            className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs transition"
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProfessional(p.id)}
+                            className="p-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 rounded-lg text-xs transition border border-rose-500/20"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 4: DÍAS & HORARIOS */}
+            {configSubTab === 'horarios' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <Clock size={16} className="text-indigo-400" /> Horarios Disponibles del Negocio
+                    </h3>
+                    <p className="text-xs text-slate-400">Configurá los días y rangos de atención para las reservas web</p>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-400">Intervalo:</span>
+                    <select
+                      value={currentTenant.slotIntervalMinutes || 30}
+                      onChange={(e) => handleUpdateInterval(Number(e.target.value))}
+                      className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                    >
+                      <option value={15}>Cada 15 min</option>
+                      <option value={30}>Cada 30 min</option>
+                      <option value={45}>Cada 45 min</option>
+                      <option value={60}>Cada 60 min</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {activeSchedule.map((dayItem, idx) => (
+                    <div key={dayItem.day} className="glass-card p-4 rounded-2xl space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={dayItem.isOpen}
+                            onChange={(e) => handleUpdateScheduleDay(idx, 'isOpen', e.target.checked)}
+                            className="w-4 h-4 accent-indigo-500 rounded cursor-pointer"
+                          />
+                          <span className={`text-sm font-bold ${dayItem.isOpen ? 'text-white' : 'text-slate-500'}`}>
+                            {dayItem.day}
+                          </span>
+                        </div>
+
+                        <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          dayItem.isOpen ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-slate-800 text-slate-500'
+                        }`}>
+                          {dayItem.isOpen ? 'Abierto' : 'Cerrado'}
+                        </span>
+                      </div>
+
+                      {dayItem.isOpen && (
+                        <div className="flex items-center gap-3 text-xs pt-1 border-t border-slate-800/60">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-slate-400">De:</span>
+                            <input
+                              type="time"
+                              value={dayItem.openTime}
+                              onChange={(e) => handleUpdateScheduleDay(idx, 'openTime', e.target.value)}
+                              className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-white text-xs"
+                            />
+                            <span className="text-slate-400">a:</span>
+                            <input
+                              type="time"
+                              value={dayItem.closeTime}
+                              onChange={(e) => handleUpdateScheduleDay(idx, 'closeTime', e.target.value)}
+                              className="bg-slate-950 border border-slate-800 rounded-lg px-2 py-1 text-white text-xs"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 5: WHATSAPP & AVISOS */}
+            {configSubTab === 'whatsapp' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <div className="glass-card p-6 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                    <div>
+                      <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                        <MessageSquare size={16} className="text-emerald-400" /> Configuración de WhatsApp del Negocio
+                      </h3>
+                      <p className="text-xs text-slate-400">Instancia vinculada para enviar notificaciones automáticas</p>
+                    </div>
+                    
+                    <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                      currentTenant.whatsappConfig.status === 'connected' 
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' 
+                        : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                    }`}>
+                      {currentTenant.whatsappConfig.status === 'connected' ? '● Conectado' : '⏳ Pendiente QR'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                    <div className="flex flex-col items-center justify-center p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                      {/* eslint-disable-next-html-next-element */}
+                      <img
+                        src={currentTenant.whatsappConfig.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SAAS_TENANT_QR_${currentTenant.slug}`}
+                        alt="WhatsApp QR Code"
+                        className="w-40 h-40 bg-white p-2 rounded-xl shadow-md"
+                      />
+                      <span className="text-xs text-slate-400 text-center">
+                        Escaneá este código desde WhatsApp ➔ Dispositivos Vinculados
+                      </span>
+                    </div>
+
+                    <div className="space-y-4 text-xs">
+                      <div className="space-y-2">
+                        <span className="font-bold text-white block">Recordatorios Automáticos:</span>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={currentTenant.whatsappConfig.autoRemind24h}
+                            onChange={(e) => handleUpdateWhatsappConfig('autoRemind24h', e.target.checked)}
+                            className="w-4 h-4 accent-emerald-500 rounded"
+                          />
+                          <span>Enviar recordatorio 24 horas antes del turno</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer text-slate-300">
+                          <input
+                            type="checkbox"
+                            checked={currentTenant.whatsappConfig.autoRemind2h}
+                            onChange={(e) => handleUpdateWhatsappConfig('autoRemind2h', e.target.checked)}
+                            className="w-4 h-4 accent-emerald-500 rounded"
+                          />
+                          <span>Enviar aviso exprés 2 horas antes</span>
+                        </label>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="font-bold text-white block">Mensaje de Bienvenida Automático</label>
+                        <textarea
+                          rows={2}
+                          value={currentTenant.whatsappConfig.welcomeMessage}
+                          onChange={(e) => handleUpdateWhatsappConfig('welcomeMessage', e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SUB-TAB 6: MI PERFIL DE USUARIO */}
+            {configSubTab === 'profile' && (
+              <div className="space-y-6 animate-in fade-in duration-200">
+                <form onSubmit={handleSaveUserProfile} className="glass-card p-6 rounded-2xl space-y-4 border border-slate-800">
+                  <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                    <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                      <UserIcon size={16} className="text-indigo-400" /> Perfil de Usuario Logueado (Tus Datos)
+                    </h3>
+                    {profileSaveMsg && (
+                      <span className="text-xs font-semibold text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20">
+                        {profileSaveMsg}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-slate-300">Nombre del Titular / Usuario</label>
+                      <input
+                        type="text"
+                        value={userProfileName}
+                        onChange={(e) => setUserProfileName(e.target.value)}
+                        className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="font-semibold text-slate-300">Email Registrado (Acceso)</label>
+                      <input
+                        type="email"
+                        disabled
+                        value={currentTenant.ownerEmail}
+                        className="w-full bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400 cursor-not-allowed"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsPasswordModalOpen(true)}
+                      className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-rose-300 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
+                    >
+                      <Lock size={14} /> Cambiar / Resetear Contraseña
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-indigo-600/20 transition"
+                    >
+                      Actualizar Perfil
+                    </button>
+                  </div>
+                </form>
+              </div>
+            )}
 
           </div>
         )}
@@ -1734,24 +1799,24 @@ function TenantAdminContent() {
 
       </main>
 
-      {/* Mobile Bottom Navigation Bar */}
+      {/* Mobile Bottom Navigation Bar - 4 Pestañas Principales */}
       <nav className="fixed bottom-0 left-0 right-0 bg-slate-900/95 border-t border-slate-800 backdrop-blur-lg z-40 px-2 py-2">
         <div className="max-w-md mx-auto flex items-center justify-around">
           
           <button
             onClick={() => setActiveTab('dashboard')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
-              activeTab === 'dashboard' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white'
+            className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition ${
+              activeTab === 'dashboard' ? 'text-emerald-400 bg-emerald-500/10 font-bold' : 'text-slate-400 hover:text-white'
             }`}
           >
             <BarChart3 size={18} />
-            <span className="text-[10px] font-semibold">Dashboard</span>
+            <span className="text-[10px]">Dashboard</span>
           </button>
 
           <button
             onClick={() => setActiveTab('agenda')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition relative ${
-              activeTab === 'agenda' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
+            className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition relative ${
+              activeTab === 'agenda' ? 'text-indigo-400 bg-indigo-500/10 font-bold' : 'text-slate-400 hover:text-white'
             }`}
           >
             <div className="relative">
@@ -1762,57 +1827,27 @@ function TenantAdminContent() {
                 </span>
               )}
             </div>
-            <span className="text-[10px] font-semibold">Agenda</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('whatsapp')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
-              activeTab === 'whatsapp' ? 'text-emerald-400 bg-emerald-500/10' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <MessageSquare size={18} />
-            <span className="text-[10px] font-semibold">WhatsApp</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('horarios')}
-            className={`flex flex-col items-center gap-1 py-1 px-2 rounded-xl transition ${
-              activeTab === 'horarios' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Clock size={18} />
-            <span className="text-[10px] font-semibold">Horarios</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('servicios')}
-            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
-              activeTab === 'servicios' ? 'text-amber-400 bg-amber-500/10' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Briefcase size={18} />
-            <span className="text-[10px] font-semibold">Servicios</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('configuracion')}
-            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
-              activeTab === 'configuracion' ? 'text-indigo-400 bg-indigo-500/10' : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <Settings size={18} />
-            <span className="text-[10px] font-semibold">Config.</span>
+            <span className="text-[10px]">Agenda</span>
           </button>
 
           <button
             onClick={() => setActiveTab('clientes')}
-            className={`flex flex-col items-center gap-1 py-1 px-2.5 rounded-xl transition ${
-              activeTab === 'clientes' ? 'text-teal-400 bg-teal-500/10' : 'text-slate-400 hover:text-white'
+            className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition ${
+              activeTab === 'clientes' ? 'text-teal-400 bg-teal-500/10 font-bold' : 'text-slate-400 hover:text-white'
             }`}
           >
             <Users size={18} />
-            <span className="text-[10px] font-semibold">Clientes</span>
+            <span className="text-[10px]">Clientes</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('configuracion')}
+            className={`flex flex-col items-center gap-1 py-1.5 px-3 rounded-xl transition ${
+              activeTab === 'configuracion' ? 'text-indigo-400 bg-indigo-500/10 font-bold' : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Settings size={18} />
+            <span className="text-[10px]">Config.</span>
           </button>
 
         </div>
@@ -2603,6 +2638,7 @@ function TenantAdminContent() {
 
     </div>
   );
+}
 }
 
 export default function TenantAdminPage() {
