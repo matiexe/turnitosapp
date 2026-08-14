@@ -51,6 +51,10 @@ export async function POST(req: Request) {
     });
   } catch (error: any) {
     console.error('Error in Business Login API:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    const isDbError = error?.message?.includes('Unable to open') || error?.message?.includes('prisma') || error?.code === 'P1012';
+    const friendlyError = isDbError
+      ? 'No se pudo conectar con la base de datos local. Por favor intentá nuevamente.'
+      : (error.message || 'Error al procesar el inicio de sesión.');
+    return NextResponse.json({ success: false, error: friendlyError }, { status: 500 });
   }
 }
