@@ -128,8 +128,11 @@ function TenantAdminContent() {
   const [passwordErrorMsg, setPasswordErrorMsg] = useState('');
   const [passwordSuccessMsg, setPasswordSuccessMsg] = useState('');
 
-  // Onboarding Wizard State
-  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3>(1);
+  // Onboarding Wizard State (5 Pasos con opción de omitir)
+  const [onboardingStep, setOnboardingStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+  const [obServiceName, setObServiceName] = useState('');
+  const [obServicePrice, setObServicePrice] = useState('');
+  const [obServiceDuration, setObServiceDuration] = useState('30');
 
   const handleCopyBookingLink = () => {
     if (!currentTenant) return;
@@ -2240,32 +2243,42 @@ function TenantAdminContent() {
       {/* Modal: Onboarding Wizard Inicial de Negocio */}
       {currentTenant.hasCompletedOnboarding === false && (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-6 shadow-2xl relative overflow-hidden">
+          <div className="glass-card bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl relative overflow-hidden">
             
-            {/* Header Wizard */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            {/* Header Wizard con botón Omitir Todo */}
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg">
-                  <Rocket size={20} />
+                <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-500 to-indigo-600 flex items-center justify-center text-white font-black shadow-lg">
+                  <Rocket size={18} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-white tracking-tight">
+                  <h3 className="text-sm font-black text-white tracking-tight">
                     ¡Bienvenido a tuturnito<span className="text-emerald-400">.app</span>! 🚀
                   </h3>
-                  <p className="text-xs text-slate-400">Configuración inicial en 3 simples pasos</p>
+                  <p className="text-[11px] text-slate-400">Configuración inicial del negocio</p>
                 </div>
               </div>
 
-              <span className="px-3 py-1 bg-slate-800 text-slate-300 text-xs font-bold rounded-full">
-                Paso {onboardingStep} de 3
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="px-2.5 py-0.5 bg-slate-800 text-slate-300 text-[11px] font-bold rounded-full">
+                  {onboardingStep} de 5
+                </span>
+                <button
+                  onClick={handleCompleteOnboarding}
+                  className="text-[11px] text-slate-400 hover:text-emerald-400 underline font-medium"
+                >
+                  Omitir Todo ➔
+                </button>
+              </div>
             </div>
 
             {/* Step Indicators */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-5 gap-1.5">
               <div className={`h-1.5 rounded-full transition ${onboardingStep >= 1 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
               <div className={`h-1.5 rounded-full transition ${onboardingStep >= 2 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
               <div className={`h-1.5 rounded-full transition ${onboardingStep >= 3 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+              <div className={`h-1.5 rounded-full transition ${onboardingStep >= 4 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
+              <div className={`h-1.5 rounded-full transition ${onboardingStep >= 5 ? 'bg-emerald-500' : 'bg-slate-800'}`} />
             </div>
 
             {/* STEP 1: Datos & Identidad */}
@@ -2273,7 +2286,7 @@ function TenantAdminContent() {
               <div className="space-y-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Building size={16} className="text-emerald-400" /> 1. Confirmá los datos de tu comercio
+                    <Building size={16} className="text-emerald-400" /> 1. Datos e Identidad del Comercio
                   </h4>
                   <p className="text-xs text-slate-400">Personalizá cómo te verán tus clientes al ingresar a agendar turnos</p>
                 </div>
@@ -2316,62 +2329,238 @@ function TenantAdminContent() {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-slate-800 flex justify-end">
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+                  <button
+                    onClick={() => setOnboardingStep(2)}
+                    className="text-xs text-slate-400 hover:text-slate-200"
+                  >
+                    Omitir este paso
+                  </button>
                   <button
                     onClick={() => setOnboardingStep(2)}
                     className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
                   >
-                    Siguiente: Vincular WhatsApp →
+                    Siguiente: Servicios & Precios →
                   </button>
                 </div>
               </div>
             )}
 
-            {/* STEP 2: Vinculación WhatsApp */}
+            {/* STEP 2: Configuración de Servicios & Precios */}
             {onboardingStep === 2 && (
               <div className="space-y-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <MessageSquare size={16} className="text-emerald-400" /> 2. Conectá tu WhatsApp para Recordatorios
+                    <Scissors size={16} className="text-emerald-400" /> 2. Servicios & Precios Iniciales
+                  </h4>
+                  <p className="text-xs text-slate-400">Agregá tus principales servicios o modificá los predeterminados</p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-2">
+                    <span className="text-[11px] font-bold text-slate-300 block">Agregar Nuevo Servicio Rápidamente:</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Nombre servicio"
+                        value={obServiceName}
+                        onChange={(e) => setObServiceName(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                      />
+                      <input
+                        type="number"
+                        placeholder="Precio $"
+                        value={obServicePrice}
+                        onChange={(e) => setObServicePrice(e.target.value)}
+                        className="bg-slate-900 border border-slate-800 rounded-xl px-2.5 py-1.5 text-xs text-white"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!obServiceName) return;
+                          const newS: Service = {
+                            id: `s-${Date.now()}`,
+                            tenantId: currentTenant.id,
+                            name: obServiceName,
+                            durationMinutes: parseInt(obServiceDuration) || 30,
+                            price: parseFloat(obServicePrice) || 0,
+                            category: 'General',
+                            requireDeposit: false
+                          };
+                          setServices([newS, ...services]);
+                          setObServiceName('');
+                          setObServicePrice('');
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl py-1.5"
+                      >
+                        + Agregar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="max-h-36 overflow-y-auto space-y-1.5 pr-1">
+                    {tenantServices.length === 0 ? (
+                      <p className="text-[11px] text-slate-500 italic text-center py-2">No hay servicios aún.</p>
+                    ) : (
+                      tenantServices.map(s => (
+                        <div key={s.id} className="flex items-center justify-between bg-slate-950 p-2 rounded-xl border border-slate-800/80 text-xs">
+                          <span className="font-semibold text-white truncate max-w-[180px]">{s.name}</span>
+                          <div className="flex items-center gap-3 text-[11px]">
+                            <span className="text-slate-400">{s.durationMinutes} min</span>
+                            <span className="font-bold text-emerald-400">${s.price.toLocaleString('es-AR')}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+                  <button
+                    onClick={() => setOnboardingStep(3)}
+                    className="text-xs text-slate-400 hover:text-slate-200"
+                  >
+                    Omitir este paso
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOnboardingStep(1)}
+                      className="text-xs text-slate-400 hover:text-white px-2"
+                    >
+                      ← Atrás
+                    </button>
+                    <button
+                      onClick={() => setOnboardingStep(3)}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                    >
+                      Siguiente: Horarios →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: Configuración de Días & Horarios de Atención */}
+            {onboardingStep === 3 && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <Clock size={16} className="text-emerald-400" /> 3. Días & Intervalo de Atención
+                  </h4>
+                  <p className="text-xs text-slate-400">Definí el tiempo de cada turno y tus días laborales</p>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <label className="font-semibold text-slate-300 mb-1 block">Intervalo por Turno (minutos)</label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[15, 30, 45, 60].map(mins => (
+                        <button
+                          key={mins}
+                          type="button"
+                          onClick={() => {
+                            const updated = { ...currentTenant, slotIntervalMinutes: mins };
+                            setCurrentTenant(updated);
+                          }}
+                          className={`py-2 rounded-xl border text-xs font-bold transition ${
+                            currentTenant.slotIntervalMinutes === mins
+                              ? 'bg-emerald-500/20 border-emerald-500 text-emerald-400'
+                              : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          {mins} min
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950 p-3 rounded-2xl border border-slate-800 space-y-1.5">
+                    <span className="font-semibold text-slate-300 block">Jornada habitual de Atención:</span>
+                    <div className="flex justify-between items-center text-[11px] text-slate-400">
+                      <span>Lunes a Sábado</span>
+                      <span className="font-bold text-white">09:00 a 19:00 hs</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+                  <button
+                    onClick={() => setOnboardingStep(4)}
+                    className="text-xs text-slate-400 hover:text-slate-200"
+                  >
+                    Omitir este paso
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOnboardingStep(2)}
+                      className="text-xs text-slate-400 hover:text-white px-2"
+                    >
+                      ← Atrás
+                    </button>
+                    <button
+                      onClick={() => setOnboardingStep(4)}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                    >
+                      Siguiente: WhatsApp →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 4: Vinculación WhatsApp */}
+            {onboardingStep === 4 && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    <MessageSquare size={16} className="text-emerald-400" /> 4. Conectá tu WhatsApp para Recordatorios
                   </h4>
                   <p className="text-xs text-slate-400">Escaneá el código QR desde tu celular en WhatsApp ➔ Dispositivos Vinculados</p>
                 </div>
 
-                <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col items-center justify-center space-y-3">
+                <div className="p-3 bg-slate-950 rounded-2xl border border-slate-800 flex flex-col items-center justify-center space-y-2">
                   {/* eslint-disable-next-html-next-element */}
                   <img
                     src={currentTenant.whatsappConfig.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SAAS_TENANT_QR_${currentTenant.slug}`}
                     alt="WhatsApp QR Code"
-                    className="w-36 h-36 bg-white p-2 rounded-xl shadow-md"
+                    className="w-32 h-32 bg-white p-2 rounded-xl shadow-md"
                   />
                   <span className="text-[11px] text-emerald-400 font-semibold flex items-center gap-1">
                     <Check size={14} /> Instancia lista para escanear
                   </span>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800 flex justify-between">
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
                   <button
-                    onClick={() => setOnboardingStep(1)}
-                    className="text-xs text-slate-400 hover:text-white"
+                    onClick={() => setOnboardingStep(5)}
+                    className="text-xs text-slate-400 hover:text-slate-200"
                   >
-                    ← Atrás
+                    Omitir / Configurar después
                   </button>
-                  <button
-                    onClick={() => setOnboardingStep(3)}
-                    className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
-                  >
-                    Siguiente: Servicios & Horarios →
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setOnboardingStep(3)}
+                      className="text-xs text-slate-400 hover:text-white px-2"
+                    >
+                      ← Atrás
+                    </button>
+                    <button
+                      onClick={() => setOnboardingStep(5)}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg transition"
+                    >
+                      Siguiente: Confirmación →
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* STEP 3: Listo para empezar */}
-            {onboardingStep === 3 && (
+            {/* STEP 5: Listo para empezar */}
+            {onboardingStep === 5 && (
               <div className="space-y-4">
                 <div className="space-y-1">
                   <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    <Check size={16} className="text-emerald-400" /> 3. ¡Tu negocio está listo para recibir turnos!
+                    <Check size={16} className="text-emerald-400" /> 5. ¡Tu negocio está listo para recibir turnos!
                   </h4>
                   <p className="text-xs text-slate-400">Tus clientes ya pueden agendar mediante tu link personalizado</p>
                 </div>
@@ -2391,9 +2580,9 @@ function TenantAdminContent() {
                   </div>
                 </div>
 
-                <div className="pt-3 border-t border-slate-800 flex justify-between">
+                <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
                   <button
-                    onClick={() => setOnboardingStep(2)}
+                    onClick={() => setOnboardingStep(4)}
                     className="text-xs text-slate-400 hover:text-white"
                   >
                     ← Atrás
