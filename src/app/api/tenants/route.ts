@@ -59,7 +59,30 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: 'Faltan campos requeridos.' }, { status: 400 });
     }
 
-    const tenantSlug = slug || `negocio-${Date.now()}`;
+    const cleanEmail = ownerEmail.toLowerCase().trim();
+    let tenantSlug = (slug || name.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-')).replace(/(^-|-$)+/g, '');
+    if (!tenantSlug) tenantSlug = `negocio-${Date.now()}`;
+
+    // Check for existing business with same email or slug
+    const existing = await prisma.tenant.findFirst({
+      where: {
+        OR: [
+          { ownerEmail: cleanEmail },
+          { slug: tenantSlug }
+        ]
+      }
+    });
+
+    if (existing) {
+      if (existing.ownerEmail === cleanEmail) {
+        return NextResponse.json({
+          success: false,
+          error: 'Ya existe una cuenta registrada con este correo electrónico. Por favor iniciá sesión en /login.'
+        }, { status: 400 });
+      } else {
+        tenantSlug = `${tenantSlug}-${Math.floor(Math.random() * 1000)}`;
+      }
+    }
 
     const newTenant = await prisma.tenant.create({
       data: {
@@ -67,7 +90,7 @@ export async function POST(req: Request) {
         slug: tenantSlug,
         rubro: rubro || 'peluqueria',
         ownerName: ownerName || 'Propietario',
-        ownerEmail: ownerEmail.toLowerCase().trim(),
+        ownerEmail: cleanEmail,
         phone: phone || '+54 9 11 0000-0000',
         plan: 'trial',
         status: 'active',
@@ -83,6 +106,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: true, tenant: newTenant });
   } catch (error: any) {
     console.error('Error creating tenant API:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (error?.code === 'P2002') {
+      return NextResponse.json({
+        success: false,
+        error: 'Ya existe un negocio registrado con ese correo o slug. Por favor probá con otro email o iniciá sesión.'
+      }, { status: 400 });
+    }
+
+    if (error?.message?.includes('readonly') || error?.message?.includes('Unable to open')) {
+      return NextResponse.json({
+        success: false,
+        error: 'El sistema está en modo lectura o la base de datos de producción necesita la variable DATABASE_URL de PostgreSQL/Supabase.'
+      }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: false, error: error.message || 'Error al registrar la empresa.' }, { status: 500 });
   }
 }
