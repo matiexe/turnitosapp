@@ -25,7 +25,7 @@ import {
   RefreshCw,
   LogOut
 } from 'lucide-react';
-import { Tenant, RubroType, SuperAdminStats, WhatsAppStatus } from '@/types/saas';
+import { Tenant, RubroType, SuperAdminStats, WhatsAppStatus, Appointment, Client } from '@/types/saas';
 import { INITIAL_TENANTS, INITIAL_APPOINTMENTS, INITIAL_CLIENTS, getInitialSuperAdminStats, DEFAULT_SCHEDULE } from '@/lib/mockStore';
 
 export default function SuperAdminPage() {
@@ -45,56 +45,125 @@ export default function SuperAdminPage() {
   const [newTenantPhone, setNewTenantPhone] = useState('');
   const [newTenantPlan, setNewTenantPlan] = useState<'trial' | 'pro' | 'enterprise'>('pro');
 
-  useEffect(() => {
-    // Load from localStorage or initialize
-    const savedTenants = localStorage.getItem('saas_tenants');
-    if (savedTenants) {
-      const parsed = JSON.parse(savedTenants);
-      setTenants(parsed);
-      setStats(getInitialSuperAdminStats(parsed, INITIAL_APPOINTMENTS, INITIAL_CLIENTS));
-    } else {
-      setTenants(INITIAL_TENANTS);
-      localStorage.setItem('saas_tenants', JSON.stringify(INITIAL_TENANTS));
-      setStats(getInitialSuperAdminStats(INITIAL_TENANTS, INITIAL_APPOINTMENTS, INITIAL_CLIENTS));
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchRealData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch Real Tenants from Database
+      const resTenants = await fetch('/api/tenants');
+      const dataTenants = await resTenants.json();
+
+      // 2. Fetch Real Appointments from Database
+      const resApps = await fetch('/api/appointments');
+      const dataApps = await resApps.json();
+
+      let realTenants: Tenant[] = [];
+      let realApps: Appointment[] = [];
+
+      if (dataTenants.success && dataTenants.tenants && dataTenants.tenants.length > 0) {
+        realTenants = dataTenants.tenants;
+      } else {
+        const savedTenants = localStorage.getItem('saas_tenants');
+        realTenants = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
+      }
+
+      if (dataApps.success && dataApps.appointments) {
+        realApps = dataApps.appointments;
+      } else {
+        const savedApps = localStorage.getItem('saas_appointments');
+        realApps = savedApps ? JSON.parse(savedApps) : INITIAL_APPOINTMENTS;
+      }
+
+      setTenants(realTenants);
+      localStorage.setItem('saas_tenants', JSON.stringify(realTenants));
+
+      // Compute Real Stats
+      const totalTenants = realTenants.length;
+      const activeTenants = realTenants.filter(t => t.status === 'active').length;
+      const totalAppointmentsCount = realApps.length;
+      const connectedWhatsapp = realTenants.filter(t => t.whatsappConfig?.status === 'connected').length;
+      const connectedWhatsappRatio = totalTenants > 0 ? Math.round((connectedWhatsapp / totalTenants) * 100) : 0;
+      
+      let monthlyRevenue = 0;
+      realTenants.forEach(t => {
+        if (t.plan === 'pro') monthlyRevenue += 15000;
+        if (t.plan === 'enterprise') monthlyRevenue += 35000;
+      });
+
+      setStats({
+        totalTenants,
+        activeTenants,
+        totalUsersCount: realTenants.length * 5,
+        totalAppointmentsCount,
+        connectedWhatsappRatio,
+        monthlyRevenue
+      });
+    } catch (err) {
+      console.error('Error fetching real data for SuperAdmin:', err);
+      const savedTenants = localStorage.getItem('saas_tenants');
+      const parsedTenants = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
+      setTenants(parsedTenants);
+      setStats(getInitialSuperAdminStats(parsedTenants, INITIAL_APPOINTMENTS, INITIAL_CLIENTS));
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+    fetchRealData();
   }, []);
 
   const saveTenantsToStore = (updated: Tenant[]) => {
     setTenants(updated);
     localStorage.setItem('saas_tenants', JSON.stringify(updated));
-    setStats(getInitialSuperAdminStats(updated, INITIAL_APPOINTMENTS, INITIAL_CLIENTS));
+    const totalTenants = updated.length;
+    const activeTenants = updated.filter(t => t.status === 'active').length;
+    const connectedWhatsapp = updated.filter(t => t.whatsappConfig?.status === 'connected').length;
+    const connectedWhatsappRatio = totalTenants > 0 ? Math.round((connectedWhatsapp / totalTenants) * 100) : 0;
+    let monthlyRevenue = 0;
+    updated.forEach(t => {
+      if (t.plan === 'pro') monthlyRevenue += 15000;
+      if (t.plan === 'enterprise') monthlyRevenue += 35000;
+    });
+    setStats({
+      totalTenants,
+      activeTenants,
+      totalUsersCount: updated.length * 5,
+      totalAppointmentsCount: stats?.totalAppointmentsCount || 0,
+      connectedWhatsappRatio,
+      monthlyRevenue
+    });
   };
 
-  const handleCreateTenant = (e: React.FormEvent) => {
+  const handleCreateTenant = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTenantName || !newTenantOwner || !newTenantEmail) return;
 
     const slug = newTenantSlug || newTenantName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-    const newTenant: Tenant = {
-      id: `t-${Date.now()}`,
-      name: newTenantName,
-      slug,
-      rubro: newTenantRubro,
-      ownerName: newTenantOwner,
-      ownerEmail: newTenantEmail,
-      phone: newTenantPhone || '+54 9 11 0000-0000',
-      plan: newTenantPlan,
-      status: 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-      slotIntervalMinutes: 30,
-      schedule: DEFAULT_SCHEDULE,
-      whatsappConfig: {
-        instanceId: `inst_${slug}`,
-        status: 'qrcode_ready',
-        qrCodeUrl: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SAAS_TENANT_QR_' + slug,
-        autoRemind24h: true,
-        autoRemind2h: true,
-        welcomeMessage: `¡Hola! Bienvenido a ${newTenantName}. ¿Qué turno querés reservar?`
-      }
-    };
 
-    const updated: Tenant[] = [newTenant, ...tenants];
-    saveTenantsToStore(updated);
+    try {
+      const res = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newTenantName,
+          slug,
+          rubro: newTenantRubro,
+          ownerName: newTenantOwner,
+          ownerEmail: newTenantEmail,
+          phone: newTenantPhone
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchRealData();
+      } else {
+        alert(data.error || 'Error al crear el comercio.');
+      }
+    } catch (e) {
+      console.error('Error creating tenant:', e);
+    }
 
     // Reset Form
     setNewTenantName('');
