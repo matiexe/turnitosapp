@@ -34,7 +34,7 @@ export default function RegisterPage() {
   const [phone, setPhone] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!businessName || !ownerName || !ownerEmail) return;
 
@@ -46,48 +46,43 @@ export default function RegisterPage() {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)+/g, '');
 
-    const newTenant: Tenant = {
-      id: `t-${Date.now()}`,
-      name: businessName,
-      slug: slug || `negocio-${Date.now()}`,
-      rubro,
-      ownerName,
-      ownerEmail,
-      phone: phone || '+54 9 11 0000-0000',
-      plan: 'trial',
-      status: 'active',
-      createdAt: new Date().toISOString().split('T')[0],
-      slotIntervalMinutes: 30,
-      schedule: DEFAULT_SCHEDULE,
-      whatsappConfig: {
-        instanceId: `inst_${slug}`,
-        status: 'qrcode_ready',
-        qrCodeUrl: `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SAAS_TENANT_QR_${slug}`,
-        autoRemind24h: true,
-        autoRemind2h: true,
-        welcomeMessage: `¡Hola! Bienvenido a ${businessName}. ¿Qué turno querés agendar hoy?`
-      },
-      hasCompletedOnboarding: false
-    };
+    try {
+      const res = await fetch('/api/tenants', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: businessName,
+          slug,
+          rubro,
+          ownerName,
+          ownerEmail,
+          phone
+        })
+      });
 
-    // Save to localStorage
-    const savedTenants = localStorage.getItem('saas_tenants');
-    const existingTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
-    const updatedTenants = [newTenant, ...existingTenants];
-    localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
-
-    // Also store active user session
-    localStorage.setItem('tuturnito_current_user', JSON.stringify({
-      email: ownerEmail,
-      tenantId: newTenant.id,
-      role: 'tenant_admin'
-    }));
-
-    setTimeout(() => {
+      const data = await res.json();
       setIsSubmitting(false);
+
+      if (!res.ok || !data.success) {
+        alert(data.error || 'Error al registrar el negocio.');
+        return;
+      }
+
+      const tenantId = data.tenant.id;
+
+      // Store active user session
+      localStorage.setItem('tuturnito_current_user', JSON.stringify({
+        email: ownerEmail,
+        tenantId,
+        role: 'tenant_admin'
+      }));
+
       // Redirect to tenant admin panel
-      router.push(`/admin?tenant=${newTenant.id}`);
-    }, 600);
+      router.push(`/admin?tenant=${tenantId}`);
+    } catch (err: any) {
+      setIsSubmitting(false);
+      alert('Error de conexión al crear el negocio.');
+    }
   };
 
   return (

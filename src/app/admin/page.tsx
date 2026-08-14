@@ -139,7 +139,7 @@ function TenantAdminContent() {
     setTimeout(() => setCopiedLink(false), 2000);
   };
 
-  const handleSaveTenantInfo = (e: React.FormEvent) => {
+  const handleSaveTenantInfo = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentTenant) return;
     const updatedTenant: Tenant = {
@@ -152,11 +152,24 @@ function TenantAdminContent() {
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+
+    try {
+      await fetch(`/api/tenants/${currentTenant.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: updatedTenant.name,
+          phone: updatedTenant.phone,
+          slug: updatedTenant.slug
+        })
+      });
+    } catch (e) {}
+
     setTenantSaveMsg('¡Datos del negocio guardados con éxito!');
     setTimeout(() => setTenantSaveMsg(''), 3000);
   };
 
-  const handleSaveUserProfile = (e: React.FormEvent) => {
+  const handleSaveUserProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentTenant) return;
     const updatedTenant: Tenant = {
@@ -167,6 +180,15 @@ function TenantAdminContent() {
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+
+    try {
+      await fetch(`/api/tenants/${currentTenant.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ownerName: updatedTenant.ownerName })
+      });
+    } catch (e) {}
+
     setProfileSaveMsg('¡Nombre de usuario actualizado con éxito!');
     setTimeout(() => setProfileSaveMsg(''), 3000);
   };
@@ -273,21 +295,39 @@ function TenantAdminContent() {
       } catch (e) {}
     }
 
-    // Load Tenants
-    const savedTenants = localStorage.getItem('saas_tenants');
-    const loadedTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
-    setTenants(loadedTenants);
+    async function loadDataFromDb() {
+      try {
+        const res = await fetch('/api/tenants');
+        const data = await res.json();
+        if (data.success && data.tenants && data.tenants.length > 0) {
+          const loadedTenants: Tenant[] = data.tenants;
+          setTenants(loadedTenants);
+          localStorage.setItem('saas_tenants', JSON.stringify(loadedTenants));
 
-    // Pick active tenant (Priority 1: URL param, Priority 2: Session tenantId, Priority 3: First tenant)
-    const targetId = tenantIdParam || sessionTenantId;
-    const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0];
-    setCurrentTenant(found);
-    if (found) {
-      setEditBusinessName(found.name);
-      setEditBusinessPhone(found.phone);
-      setEditBusinessSlug(found.slug);
-      setUserProfileName(found.ownerName);
+          const targetId = tenantIdParam || sessionTenantId;
+          const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0];
+          setCurrentTenant(found);
+          if (found) {
+            setEditBusinessName(found.name);
+            setEditBusinessPhone(found.phone);
+            setEditBusinessSlug(found.slug);
+            setUserProfileName(found.ownerName);
+          }
+        } else {
+          // Fallback to local storage
+          const savedTenants = localStorage.getItem('saas_tenants');
+          const loadedTenants: Tenant[] = savedTenants ? JSON.parse(savedTenants) : INITIAL_TENANTS;
+          setTenants(loadedTenants);
+          const targetId = tenantIdParam || sessionTenantId;
+          const found = (targetId ? loadedTenants.find(t => t.id === targetId) : null) || loadedTenants[0];
+          setCurrentTenant(found);
+        }
+      } catch (err) {
+        console.error('API load error, using cached storage:', err);
+      }
     }
+
+    loadDataFromDb();
 
     // Load Appointments, Services, Professionals
     const savedApps = localStorage.getItem('saas_appointments');

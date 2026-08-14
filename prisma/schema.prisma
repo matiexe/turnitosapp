@@ -1,0 +1,106 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Tenant {
+  id                      String         @id @default(uuid())
+  name                    String
+  slug                    String         @unique
+  rubro                   String
+  ownerName               String
+  ownerEmail              String         @unique
+  phone                   String
+  plan                    String         @default("trial")
+  status                  String         @default("active")
+  slotIntervalMinutes     Int            @default(30)
+  logoUrl                 String?
+  bannerUrl               String?
+  primaryColor            String?        @default("#10b981")
+  hasCompletedOnboarding  Boolean        @default(false)
+  whatsappInstanceId      String?
+  whatsappPhoneNumber     String?
+  whatsappStatus          String         @default("connected")
+  whatsappAutoRemind24h   Boolean        @default(true)
+  whatsappAutoRemind2h    Boolean        @default(true)
+  whatsappWelcomeMessage  String?
+  createdAt               DateTime       @default(now())
+  updatedAt               DateTime       @updatedAt
+
+  users                   TenantUser[]
+  services                Service[]
+  professionals           Professional[]
+  clients                 Client[]
+  appointments            Appointment[]
+}
+
+model TenantUser {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  email     String   @unique
+  role      String   @default("receptionist")
+  createdAt DateTime @default(now())
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Service {
+  id              String        @id @default(uuid())
+  tenantId        String
+  name            String
+  durationMinutes Int           @default(30)
+  price           Float         @default(0)
+  active          Boolean       @default(true)
+  category        String?
+
+  tenant          Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+}
+
+model Professional {
+  id           String        @id @default(uuid())
+  tenantId     String
+  name         String
+  specialty    String
+  active       Boolean       @default(true)
+  avatarUrl    String?
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
+}
+
+model Client {
+  id                String   @id @default(uuid())
+  tenantId          String
+  name              String
+  phone             String
+  notes             String?
+  totalAppointments Int      @default(1)
+  createdAt         DateTime @default(now())
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Appointment {
+  id             String        @id @default(uuid())
+  tenantId       String
+  professionalId String
+  serviceId      String
+  clientName     String
+  clientPhone    String
+  date           String
+  time           String
+  status         String        @default("pending")
+  depositPaid    Boolean       @default(false)
+  notes          String?
+  createdAt      DateTime      @default(now())
+
+  tenant         Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  professional   Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  service        Service       @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+}
