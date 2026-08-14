@@ -28,6 +28,7 @@ import {
   AlertCircle,
   FileText,
   BarChart3,
+  RefreshCw,
   TrendingUp,
   LogOut,
   UserPlus,
@@ -134,6 +135,13 @@ function TenantAdminContent() {
   const [obServiceName, setObServiceName] = useState('');
   const [obServicePrice, setObServicePrice] = useState('');
   const [obServiceDuration, setObServiceDuration] = useState('30');
+
+  // WhatsApp Testing & Live QR State
+  const [isFetchingQr, setIsFetchingQr] = useState(false);
+  const [testPhone, setTestPhone] = useState('');
+  const [testMessage, setTestMessage] = useState('¡Hola! Este es un mensaje de prueba enviado automáticamente desde tuturnito.app 🚀');
+  const [isSendingTest, setIsSendingTest] = useState(false);
+  const [testSendMsg, setTestSendMsg] = useState('');
 
   const handleCopyBookingLink = () => {
     if (!currentTenant) return;
@@ -573,6 +581,55 @@ function TenantAdminContent() {
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+  };
+
+  const handleFetchLiveQr = async () => {
+    if (!currentTenant) return;
+    setIsFetchingQr(true);
+    try {
+      const res = await fetch(`/api/whatsapp/qr?tenantId=${currentTenant.id}`);
+      const data = await res.json();
+      if (data.success) {
+        handleUpdateWhatsappConfig('status', data.status);
+        if (data.qrCodeUrl) {
+          handleUpdateWhatsappConfig('qrCodeUrl', data.qrCodeUrl);
+        }
+      }
+    } catch (e) {
+      console.error('Error fetching live QR:', e);
+    } finally {
+      setIsFetchingQr(false);
+    }
+  };
+
+  const handleSendTestWhatsapp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentTenant || !testPhone || !testMessage) return;
+    setIsSendingTest(true);
+    setTestSendMsg('');
+
+    try {
+      const res = await fetch('/api/whatsapp/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenantId: currentTenant.id,
+          phone: testPhone,
+          message: testMessage
+        })
+      });
+      const data = await res.json();
+      setIsSendingTest(false);
+
+      if (data.success) {
+        setTestSendMsg('✅ Mensaje enviado exitosamente a WhatsApp.');
+      } else {
+        setTestSendMsg(`⚠️ ${data.error || 'No se pudo enviar el mensaje.'}`);
+      }
+    } catch (err) {
+      setIsSendingTest(false);
+      setTestSendMsg('⚠️ Error de conexión con el servicio de WhatsApp.');
+    }
   };
 
   const getRubroIcon = (rubro: RubroType) => {
@@ -1791,13 +1848,13 @@ function TenantAdminContent() {
             {/* SUB-TAB 5: WHATSAPP & AVISOS */}
             {configSubTab === 'whatsapp' && (
               <div className="space-y-6 animate-in fade-in duration-200">
-                <div className="glass-card p-6 rounded-2xl space-y-4">
+                <div className="glass-card p-6 rounded-2xl space-y-5">
                   <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                     <div>
                       <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                        <MessageSquare size={16} className="text-emerald-400" /> Configuración de WhatsApp del Negocio
+                        <MessageSquare size={16} className="text-emerald-400" /> Configuración de WhatsApp (Baileys / Evolution API)
                       </h3>
-                      <p className="text-xs text-slate-400">Instancia vinculada para enviar notificaciones automáticas</p>
+                      <p className="text-xs text-slate-400">Instancia activa: <code className="text-emerald-400">{currentTenant.whatsappConfig.instanceId || `inst_${currentTenant.slug}`}</code></p>
                     </div>
                     
                     <span className={`px-3 py-1 rounded-full text-xs font-bold ${
@@ -1809,21 +1866,34 @@ function TenantAdminContent() {
                     </span>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                    <div className="flex flex-col items-center justify-center p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                    {/* Visualizador QR & Estado */}
+                    <div className="flex flex-col items-center justify-center p-5 bg-slate-950 rounded-2xl border border-slate-800 space-y-3">
                       {/* eslint-disable-next-html-next-element */}
                       <img
                         src={currentTenant.whatsappConfig.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=SAAS_TENANT_QR_${currentTenant.slug}`}
                         alt="WhatsApp QR Code"
-                        className="w-40 h-40 bg-white p-2 rounded-xl shadow-md"
+                        className="w-44 h-44 bg-white p-2 rounded-xl shadow-md"
                       />
-                      <span className="text-xs text-slate-400 text-center">
-                        Escaneá este código desde WhatsApp ➔ Dispositivos Vinculados
+                      
+                      <button
+                        type="button"
+                        onClick={handleFetchLiveQr}
+                        disabled={isFetchingQr}
+                        className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-xs font-bold text-emerald-400 border border-slate-700 rounded-xl transition flex items-center gap-1.5 disabled:opacity-50"
+                      >
+                        <RefreshCw size={14} className={isFetchingQr ? 'animate-spin' : ''} />
+                        {isFetchingQr ? 'Actualizando QR...' : '🔄 Generar / Actualizar QR'}
+                      </button>
+
+                      <span className="text-[11px] text-slate-400 text-center">
+                        Abran WhatsApp en su celular ➔ Dispositivos vinculados ➔ Escanear código QR
                       </span>
                     </div>
 
+                    {/* Ajustes de Avisos y prueba */}
                     <div className="space-y-4 text-xs">
-                      <div className="space-y-2">
+                      <div className="space-y-2 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
                         <span className="font-bold text-white block">Recordatorios Automáticos:</span>
                         <label className="flex items-center gap-2 cursor-pointer text-slate-300">
                           <input
@@ -1846,7 +1916,7 @@ function TenantAdminContent() {
                       </div>
 
                       <div className="space-y-1.5">
-                        <label className="font-bold text-white block">Mensaje de Bienvenida Automático</label>
+                        <label className="font-bold text-white block">Mensaje de Bienvenida & Confirmación Automático</label>
                         <textarea
                           rows={2}
                           value={currentTenant.whatsappConfig.welcomeMessage}
@@ -1856,6 +1926,52 @@ function TenantAdminContent() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Formulario de prueba de envío real */}
+                  <div className="pt-4 border-t border-slate-800/80">
+                    <h4 className="text-xs font-bold text-white mb-2 flex items-center gap-2">
+                      💬 Probar Envío Directo de Mensaje
+                    </h4>
+
+                    {testSendMsg && (
+                      <div className="p-3 mb-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-emerald-400">
+                        {testSendMsg}
+                      </div>
+                    )}
+
+                    <form onSubmit={handleSendTestWhatsapp} className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      <div>
+                        <input
+                          type="text"
+                          required
+                          placeholder="Teléfono (ej: +54 9 11 1234-5678)"
+                          value={testPhone}
+                          onChange={(e) => setTestPhone(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                        />
+                      </div>
+
+                      <div className="sm:col-span-2 flex items-center gap-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="Mensaje a enviar..."
+                          value={testMessage}
+                          onChange={(e) => setTestMessage(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
+                        />
+
+                        <button
+                          type="submit"
+                          disabled={isSendingTest}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-slate-950 font-black text-xs rounded-xl shadow-md transition shrink-0"
+                        >
+                          {isSendingTest ? 'Enviando...' : 'Enviar Prueba'}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+
                 </div>
               </div>
             )}
