@@ -611,7 +611,7 @@ function TenantAdminContent() {
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
   };
 
-  const handleUpdateBranding = (field: 'logoUrl' | 'bannerUrl' | 'primaryColor', value: string) => {
+  const handleUpdateBranding = async (field: 'logoUrl' | 'bannerUrl' | 'primaryColor', value: string) => {
     if (!currentTenant) return;
     const currentBranding = currentTenant.branding || {};
     const updatedBranding = { ...currentBranding, [field]: value };
@@ -621,6 +621,38 @@ function TenantAdminContent() {
     const updatedTenants = tenants.map(t => t.id === currentTenant.id ? updatedTenant : t);
     setTenants(updatedTenants);
     localStorage.setItem('saas_tenants', JSON.stringify(updatedTenants));
+
+    try {
+      await fetch(`/api/tenants/${currentTenant.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          branding: updatedBranding,
+          logoUrl: updatedBranding.logoUrl,
+          bannerUrl: updatedBranding.bannerUrl,
+          primaryColor: updatedBranding.primaryColor
+        })
+      });
+    } catch (e) {
+      console.error('Error saving branding to DB:', e);
+    }
+  };
+
+  const handleImageUpload = (field: 'logoUrl' | 'bannerUrl', e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      alert('⚠️ La imagen seleccionada supera los 4MB. Por favor seleccioná una imagen más liviana.');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        handleUpdateBranding(field, dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const activeSchedule = currentTenant.schedule || DEFAULT_SCHEDULE;
@@ -1380,27 +1412,74 @@ function TenantAdminContent() {
 
             {/* SUB-TAB 2: PERSONALIZACIÓN & BRANDING */}
             {configSubTab === 'branding' && (
-              <div className="glass-card p-6 rounded-2xl space-y-5 border border-slate-800 animate-in fade-in duration-200">
+              <div className="glass-card p-6 rounded-2xl space-y-6 border border-slate-800 animate-in fade-in duration-200">
                 <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                   <div>
                     <h3 className="text-sm font-bold text-white flex items-center gap-2">
                       <Palette size={16} className="text-indigo-400" /> Personalización & Marca de tu Negocio
                     </h3>
-                    <p className="text-xs text-slate-400">Personalizá el logo, portada e identidad visual de tu página pública de reserva</p>
+                    <p className="text-xs text-slate-400">Subí tus propias imágenes o elegí presets. Los cambios se guardan automáticamente en la nube.</p>
                   </div>
                 </div>
 
-                {/* Logo URL */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-300">Logo / Foto de Perfil del Comercio</label>
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={currentTenant.branding?.logoUrl || ''}
-                    onChange={(e) => handleUpdateBranding('logoUrl', e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                  <span className="text-[10px] text-slate-400 block">Presets rápidos:</span>
+                {/* LOGO SECCIÓN */}
+                <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-white">1. Logo / Foto de Perfil del Comercio</label>
+                    <span className="text-[10px] text-slate-400">JPG, PNG o WEBP (Máx. 4MB)</span>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    {/* Preview Logo */}
+                    <div className="w-16 h-16 rounded-2xl bg-slate-900 border-2 border-slate-700 overflow-hidden shrink-0 flex items-center justify-center shadow-lg">
+                      {currentTenant.branding?.logoUrl ? (
+                        /* eslint-disable-next-html-next-element */
+                        <img
+                          src={currentTenant.branding.logoUrl}
+                          alt="Logo Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-xs font-black text-slate-500">Sin logo</span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2 flex-1 w-full">
+                      {/* Botón de carga local */}
+                      <div className="flex items-center gap-2">
+                        <label className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-slate-950 font-extrabold text-xs rounded-xl cursor-pointer transition shadow-md flex items-center gap-1.5 shrink-0">
+                          📁 Subir Mi Logo Propio
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => handleImageUpload('logoUrl', e)}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {currentTenant.branding?.logoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateBranding('logoUrl', '')}
+                            className="px-2.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-xl border border-rose-500/20 transition"
+                          >
+                            Quitar Logo
+                          </button>
+                        )}
+                      </div>
+
+                      {/* URL manual opcional */}
+                      <input
+                        type="text"
+                        placeholder="O pegá la URL directa de la imagen (https://...)"
+                        value={currentTenant.branding?.logoUrl || ''}
+                        onChange={(e) => handleUpdateBranding('logoUrl', e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white"
+                      />
+                    </div>
+                  </div>
+
+                  <span className="text-[10px] text-slate-400 block pt-1">O elegí una imagen predeterminada:</span>
                   <div className="flex items-center gap-2">
                     {[
                       'https://images.unsplash.com/photo-1503951914875-452162b0f3f1?w=150',
@@ -1422,17 +1501,60 @@ function TenantAdminContent() {
                   </div>
                 </div>
 
-                {/* Banner URL */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-300">Banner de Portada (Página de Reserva)</label>
-                  <input
-                    type="text"
-                    placeholder="https://..."
-                    value={currentTenant.branding?.bannerUrl || ''}
-                    onChange={(e) => handleUpdateBranding('bannerUrl', e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white"
-                  />
-                  <span className="text-[10px] text-slate-400 block">Banners predeterminados por estilo:</span>
+                {/* BANNER SECCIÓN */}
+                <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-white">2. Banner de Portada (Página de Reserva)</label>
+                    <span className="text-[10px] text-slate-400">JPG, PNG o WEBP (Máx. 4MB)</span>
+                  </div>
+
+                  {/* Preview Banner */}
+                  <div className="w-full h-24 rounded-2xl bg-slate-900 border-2 border-slate-700 overflow-hidden relative shadow-md">
+                    {currentTenant.branding?.bannerUrl ? (
+                      /* eslint-disable-next-html-next-element */
+                      <img
+                        src={currentTenant.branding.bannerUrl}
+                        alt="Banner Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-xs font-bold text-slate-500">
+                        Sin banner asignado
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                    <label className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl cursor-pointer transition shadow-md flex items-center justify-center gap-1.5 shrink-0">
+                      🖼️ Subir Mi Banner Propio
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => handleImageUpload('bannerUrl', e)}
+                        className="hidden"
+                      />
+                    </label>
+
+                    {currentTenant.branding?.bannerUrl && (
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateBranding('bannerUrl', '')}
+                        className="px-2.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 text-xs font-bold rounded-xl border border-rose-500/20 transition"
+                      >
+                        Quitar Banner
+                      </button>
+                    )}
+
+                    <input
+                      type="text"
+                      placeholder="O pegá la URL directa del banner (https://...)"
+                      value={currentTenant.branding?.bannerUrl || ''}
+                      onChange={(e) => handleUpdateBranding('bannerUrl', e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-1.5 text-xs text-white"
+                    />
+                  </div>
+
+                  <span className="text-[10px] text-slate-400 block pt-1">Banners sugeridos por estilo:</span>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { label: '💈 Barbería', url: 'https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=1200' },
@@ -1445,7 +1567,7 @@ function TenantAdminContent() {
                         type="button"
                         onClick={() => handleUpdateBranding('bannerUrl', b.url)}
                         className={`p-2 rounded-xl border text-[11px] font-bold text-left transition ${
-                          currentTenant.branding?.bannerUrl === b.url ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                          currentTenant.branding?.bannerUrl === b.url ? 'bg-indigo-500/20 border-indigo-500 text-indigo-300' : 'bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700'
                         }`}
                       >
                         {b.label}
@@ -1455,9 +1577,9 @@ function TenantAdminContent() {
                 </div>
 
                 {/* Primary Color Selector */}
-                <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-slate-300">Color Primario de la Marca</label>
-                  <div className="flex items-center gap-3">
+                <div className="space-y-2 bg-slate-950/60 p-4 rounded-2xl border border-slate-800/80">
+                  <label className="block text-xs font-bold text-white">3. Color Primario de la Marca</label>
+                  <div className="flex items-center gap-3 pt-1">
                     {[
                       { name: 'Esmeralda', hex: '#10b981' },
                       { name: 'Índigo', hex: '#6366f1' },
@@ -1470,17 +1592,18 @@ function TenantAdminContent() {
                         key={c.hex}
                         type="button"
                         onClick={() => handleUpdateBranding('primaryColor', c.hex)}
-                        className={`w-8 h-8 rounded-full transition shadow-md flex items-center justify-center border-2 ${
-                          (currentTenant.branding?.primaryColor || '#10b981') === c.hex ? 'border-white scale-110' : 'border-transparent opacity-80 hover:opacity-100'
+                        className={`w-9 h-9 rounded-full transition shadow-md flex items-center justify-center border-2 ${
+                          (currentTenant.branding?.primaryColor || '#10b981') === c.hex ? 'border-white scale-110 shadow-lg' : 'border-transparent opacity-80 hover:opacity-100'
                         }`}
                         style={{ backgroundColor: c.hex }}
                         title={c.name}
                       >
-                        {(currentTenant.branding?.primaryColor || '#10b981') === c.hex && <Check size={14} className="text-white drop-shadow" />}
+                        {(currentTenant.branding?.primaryColor || '#10b981') === c.hex && <Check size={16} className="text-white drop-shadow" />}
                       </button>
                     ))}
                   </div>
                 </div>
+
               </div>
             )}
 
