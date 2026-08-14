@@ -25,6 +25,15 @@ import {
   DEFAULT_SCHEDULE 
 } from '@/lib/mockStore';
 
+const ANY_PROFESSIONAL: Professional = {
+  id: 'any',
+  tenantId: '',
+  name: 'Sin preferencia',
+  specialty: 'Cualquier profesional disponible',
+  avatarUrl: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+  active: true
+};
+
 export default function ClientBookingPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -38,7 +47,7 @@ export default function ClientBookingPage() {
 
   // Selected State
   const [selectedService, setSelectedService] = useState<Service | null>(null);
-  const [selectedProf, setSelectedProf] = useState<Professional | null>(null);
+  const [selectedProf, setSelectedProf] = useState<Professional | null>(ANY_PROFESSIONAL);
   const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [selectedTime, setSelectedTime] = useState<string>('14:30');
 
@@ -145,12 +154,16 @@ export default function ClientBookingPage() {
 
   const handleConfirmBooking = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedService || !selectedProf || !clientName || !clientPhone) return;
+    if (!selectedService || !clientName || !clientPhone) return;
+
+    const assignedProfId = (selectedProf && selectedProf.id !== 'any')
+      ? selectedProf.id
+      : (professionals[0]?.id || 'p-1');
 
     const newApp: Appointment = {
       id: `app-${Date.now()}`,
       tenantId: tenant.id,
-      professionalId: selectedProf.id,
+      professionalId: assignedProfId,
       serviceId: selectedService.id,
       clientName,
       clientPhone,
@@ -274,9 +287,31 @@ export default function ClientBookingPage() {
 
               {/* Professionals List */}
               <div className="space-y-3 pt-3 border-t border-slate-800">
-                <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">2. Seleccioná el Profesional</h3>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider">2. Seleccioná el Profesional</h3>
+                  <span className="text-[10px] text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Opcional</span>
+                </div>
 
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {/* Opción Sin Preferencia / Cualquier Profesional */}
+                  <div
+                    onClick={() => setSelectedProf(ANY_PROFESSIONAL)}
+                    className={`p-3 rounded-2xl border cursor-pointer transition flex items-center gap-2.5 ${
+                      selectedProf?.id === 'any'
+                        ? 'bg-emerald-500/20 border-emerald-500 shadow-md text-emerald-300'
+                        : 'bg-slate-950 border-slate-800 hover:border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-black flex items-center justify-center text-sm shrink-0">
+                      ⚡
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-white">Sin preferencia</h4>
+                      <p className="text-[10px] text-slate-400">Cualquier profesional disponible</p>
+                    </div>
+                  </div>
+
+                  {/* Lista de Profesionales del Negocio */}
                   {professionals.map(p => (
                     <div
                       key={p.id}
@@ -300,7 +335,7 @@ export default function ClientBookingPage() {
 
               {/* Next Step Button */}
               <button
-                disabled={!selectedService || !selectedProf}
+                disabled={!selectedService}
                 onClick={() => setStep(2)}
                 className="w-full py-3.5 px-4 text-xs font-bold bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white rounded-2xl transition shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
               >

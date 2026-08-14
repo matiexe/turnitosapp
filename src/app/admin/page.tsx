@@ -413,14 +413,18 @@ function TenantAdminContent() {
 
   const handleCreateAppointment = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName || !newClientPhone || !newServiceId || !newProfessionalId) return;
+    if (!newClientName || !newClientPhone || !newServiceId) return;
+
+    const assignedProfId = (newProfessionalId && newProfessionalId !== 'any') 
+      ? newProfessionalId 
+      : (tenantProfessionals[0]?.id || 'p-1');
 
     // Check if slot is already occupied for this professional
     const isOccupied = appointments.some(app => 
       app.tenantId === currentTenant.id && 
       app.date === selectedDate && 
       app.time === newTime && 
-      app.professionalId === newProfessionalId && 
+      app.professionalId === assignedProfId && 
       app.status !== 'cancelled'
     );
 
@@ -432,7 +436,7 @@ function TenantAdminContent() {
     const newApp: Appointment = {
       id: `app-${Date.now()}`,
       tenantId: currentTenant.id,
-      professionalId: newProfessionalId,
+      professionalId: assignedProfId,
       serviceId: newServiceId,
       clientName: newClientName,
       clientPhone: newClientPhone,
