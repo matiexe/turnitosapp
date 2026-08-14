@@ -1,25 +1,29 @@
 import { PrismaClient } from '@prisma/client';
-import path from 'path';
 
-function getDatabaseUrl(): string {
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('file:C:')) {
-    return process.env.DATABASE_URL;
-  }
-  // Resolve absolute path to prisma/dev.db to prevent SQLite Error 14 in Windows/Next.js
-  const absoluteDbPath = path.join(process.cwd(), 'prisma', 'dev.db').replace(/\\/g, '/');
-  return `file:${absoluteDbPath}`;
+function getDatabaseUrl(): string | undefined {
+  // Support Vercel + Neon environment variable names
+  return (
+    process.env.DATABASE_URL ||
+    process.env.POSTGRES_PRISMA_URL ||
+    process.env.POSTGRES_URL_NON_POOLING ||
+    process.env.POSTGRES_URL
+  );
 }
+
+const dbUrl = getDatabaseUrl();
 
 const globalForPrisma = global as unknown as { prisma: PrismaClient };
 
 export const prisma =
   globalForPrisma.prisma ||
   new PrismaClient({
-    datasources: {
-      db: {
-        url: getDatabaseUrl(),
-      },
-    },
+    datasources: dbUrl
+      ? {
+          db: {
+            url: dbUrl,
+          },
+        }
+      : undefined,
     log: ['error', 'warn'],
   });
 
