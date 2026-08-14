@@ -9,8 +9,7 @@ import {
   Lock, 
   ArrowRight,
   Building2,
-  AlertCircle,
-  ShieldAlert
+  AlertCircle
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -149,16 +148,6 @@ export default function LoginPage() {
               )}
             </button>
           </form>
-
-          {/* Super Admin Endpoint Link */}
-          <div className="pt-4 border-t border-slate-800/80 text-center">
-            <Link 
-              href="/superadmin/login" 
-              className="text-[11px] text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1 transition"
-            >
-              <ShieldAlert size={13} /> Acceso Administrador Máster (Super Admin)
-            </Link>
-          </div>
 
         </div>
       </main>
