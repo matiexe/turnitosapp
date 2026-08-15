@@ -22,6 +22,14 @@ export async function POST(req: Request) {
 
     const sendResult = await sendEvolutionTextMessage(instanceName, phone, message);
 
+    if (!sendResult.success) {
+      return NextResponse.json({
+        success: false,
+        error: sendResult.error || 'No se pudo enviar el mensaje por WhatsApp.',
+        details: sendResult
+      }, { status: 400 });
+    }
+
     return NextResponse.json({
       success: true,
       result: sendResult,
