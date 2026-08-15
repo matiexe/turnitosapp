@@ -4,8 +4,9 @@ export interface EvolutionConfig {
 }
 
 export function getEvolutionConfig(): EvolutionConfig {
+  const url = (process.env.EVOLUTION_API_URL || '').replace(/\/+$/, '');
   return {
-    baseUrl: process.env.EVOLUTION_API_URL || 'https://evolution.tuturnito.app',
+    baseUrl: url,
     apiKey: process.env.EVOLUTION_API_KEY || 'tuturnito_master_secret_key_2026'
   };
 }
